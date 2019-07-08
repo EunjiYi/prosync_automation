@@ -1,0 +1,2 @@
+DELETE FROM test_1_1 WHERE C1=101;
+commit;

@@ -1,0 +1,9 @@
+@ins.sql
+@upd.sql
+@del.sql
+@ins_parallel.sql
+@upd_parallel.sql
+@del_parallel.sql
+@ins_append.sql
+@upd_append.sql
+@del_append.sql

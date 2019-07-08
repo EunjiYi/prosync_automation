@@ -1,0 +1,3 @@
+insert into TEST_5 select level, 'soft' from dual connect by level <=500;
+insert into TEST_5 select level, 'data' from dual connect by level <=500;
+commit;

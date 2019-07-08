@@ -1,0 +1,33 @@
+## sql creation
+insert.sh 1 100 50 dml_test_1_3 ins_test_1_3_s1.sql
+insert.sh 101 200 50 dml_test_1_3 ins_test_1_3_s2.sql
+insert.sh 201 300 50 dml_test_1_3 ins_test_1_3_s3.sql
+update.sh 1 100 50 dml_test_1_3 upd_test_1_3_s1.sql
+update.sh 101 200 50 dml_test_1_3 upd_test_1_3_s2.sql
+update.sh 201 300 50 dml_test_1_3 upd_test_1_3_s3.sql
+delete.sh 1 100 50 dml_test_1_3 del_test_1_3_s1.sql
+delete.sh 101 200 50 dml_test_1_3 del_test_1_3_s2.sql
+delete.sh 201 300 50 dml_test_1_3 del_test_1_3_s3.sql
+
+### test run!!!
+#tbsql kjccs/tibero@tac_src_sync0 << EOF
+#@ins_test_1_3_s1.sql
+#q;
+#EOF
+#tbsql kjccs/tibero@tac_src_sync0 << EOF
+#@upd_test_1_3_s1.sql 
+#q;
+#EOF
+#tbsql kjccs/tibero@tac_src_sync0 << EOF
+#@del_test_1_3_s1.sql 
+#q;
+#EOF
+#tbsql kjccs/tibero@system1 @ins_test_1_3_s1.sql &
+#tbsql kjccs/tibero@system1 @upd_test_1_3_s1.sql &
+#tbsql kjccs/tibero@system1 @del_test_1_3_s1.sql &
+#tbsql kjccs/tibero@system2 @ins_test_1_3_s2.sql &
+#tbsql kjccs/tibero@system2 @upd_test_1_3_s2.sql &
+#tbsql kjccs/tibero@system2 @del_test_1_3_s2.sql &
+#tbsql kjccs/tibero@system3 @ins_test_1_3_s3.sql &
+#tbsql kjccs/tibero@system3 @upd_test_1_3_s3.sql &
+#tbsql kjccs/tibero@system3 @del_test_1_3_s3.sql &

@@ -1,0 +1,47 @@
+################################################################################
+#
+# ProSync (Apply) Initialization Parameters
+#
+################################################################################
+
+# (Mandatory paramters)
+LISTENER_PORT=7620
+
+TOP_ID=<<sync_user>>
+
+PRS_USER=prosync_<<sync_user>>
+PRS_PWD=#encrypted
+
+APPLY_NUM=<<apply_num>>
+
+TAR_DB_TYPE=<<tar_db_type>>
+TAR_DB_NAME=<<tar_db_name>>
+
+SRC_DB_CNT=<<src_db_cnt>>
+
+MAP=(TABLE DEFAULT)
+
+DDL=(INCLUDE DEFAULT, TYPE=('ALTER TABLE','TRUNCATE TABLE','CREATE TABLE','DROP TABLE'))
+
+LLOB_APPLY_MODE=SYNC
+
+LOG_DIR=/home/prosync/prosync4_<<revision>>/var/<<sync_user>>/log
+LOG_BACKUP_DIR=/home/prosync/prosync4_<<revision>>/var/<<sync_user>>/log/backup
+
+CLIENT_DRIVER=<<client_driver>>
+ 
+# (Optional paramters)
+#LOG_LEVEL=3
+#LOG_FILE_SIZE=104857600
+#LOG_BACKUP_SIZE=0
+
+#SRC_DB_CHARSET=MSWIN949
+#SRC_DB_NCHARSET=UTF16
+
+#TX_HASH_SIZE=536870912
+
+#TX_MERGE_SIZE=536870912
+
+GROUP_NUM=2
+
+#NO_DCR_TABLE_SKIP_ERROR=N

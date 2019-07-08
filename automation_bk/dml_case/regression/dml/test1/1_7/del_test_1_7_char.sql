@@ -1,0 +1,2 @@
+DELETE FROM dml_test_1_7 WHERE C1=1;
+COMMIT;

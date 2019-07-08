@@ -1,0 +1,17 @@
+################################################################################
+#
+# ProSync (Rule) Initialization Parameters
+#
+################################################################################
+
+# (Mandatory paramters)
+CLIENT_DRIVER=/home/oracle/app/product/11.2.0/dbhome_2/lib/libclntsh.so
+
+RULE_DB_TYPE=ORACLE
+RULE_DB_NAME=orcl182
+RULE_TOP_ID=<<sync_user>>
+RULE_USER=<<sync_user>>
+RULE_PWD=#encrypted
+ 
+# (Optional paramters)
+#RULE_CFG_FILE=Y

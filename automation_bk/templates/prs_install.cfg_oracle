@@ -1,0 +1,83 @@
+############################################
+#
+# ProSync Installation Parameters (Template)
+#
+############################################
+
+# (Mandatory)
+TOP_ID=<<sync_user>>
+PRS_USER=prosync_<<sync_user>>
+
+# (Optional)
+PRS_PWD=tibero
+#PRS_TS_NAME=
+#PRS_TS_FILE=
+#PRS_TS_SIZE=
+#PRS_SKIP_USER_CREATE=N
+
+# (for MySQL only)
+#PRS_EXT_IP=
+#PRS_APPLY_IP=
+
+############################################
+#
+# Source database informations
+#
+############################################
+
+# (Mandatory)
+SRC_DB_TYPE=ORACLE
+SRC_DB_NAME=orcl
+SRC_INSTALL_USER=sys
+
+# (Optional)
+SRC_INSTALL_PWD=oracle
+#AUTO_ADD_SUPP_LOG=Y
+#SRC_SKIP_TS_CREATE=N
+
+# (for Cluster)
+#SRC_DB_CNT=1
+#SRC_DB_ALIAS[0]=
+
+# (for MySQL only)
+#PRS_EXT_IP=
+#SRC_DB_PORT=
+
+############################################
+#
+# Rule database informations
+#
+############################################
+
+# (Mandatory)
+RULE_DB_TYPE=ORACLE
+RULE_DB_NAME=orcl182
+RULE_INSTALL_USER=sys
+
+# (Optional)
+RULE_INSTALL_PWD=oracle
+
+############################################
+#
+# Target database informations
+#
+############################################
+
+# (Mandatory)
+TAR_DB_TYPE[0]=TIBERO
+TAR_DB_NAME[0]=tibero182
+TAR_INSTALL_USER[0]=sys
+
+# (Optional)
+TAR_INSTALL_PWD[0]=tibero
+TAR_INSTALL_PWD[1]=oracle
+#TAR_SKIP_TS_CREATE=N
+
+# (for multi thread)
+GROUP_NUM=2
+
+# (for Distribution)
+TAR_DB_CNT=2
+TAR_DB_TYPE[1]=ORACLE
+TAR_DB_NAME[1]=orcl182
+TAR_INSTALL_USER[1]=sys

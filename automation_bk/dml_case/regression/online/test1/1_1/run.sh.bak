@@ -1,0 +1,27 @@
+## sql creation
+#insert.sh 1 100 50 test_1_1 ins_test_1_1.sql
+#update.sh 1 100 50 test_1_1 upd_test_1_1.sql
+#delete.sh 1 100 50 test_1_1 del_test_1_1.sql
+
+## test run!!!
+
+while true
+do
+
+tbsql kjccs/tibero@system1 << EOF
+@ins_test_1_1.sql
+q;
+EOF
+
+tbsql kjccs/tibero@system1 << EOF
+@upd_test_1_1.sql
+q;
+EOF
+
+tbsql kjccs/tibero@system1 << EOF
+@del_test_1_1.sql
+q;
+EOF
+
+sleep 20
+done

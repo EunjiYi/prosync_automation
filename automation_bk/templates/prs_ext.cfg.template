@@ -1,0 +1,38 @@
+################################################################################
+#
+# ProSync (Extract) Initialization Parameters
+#
+################################################################################
+
+# (Mandatory paramters)
+LISTENER_PORT=7610
+
+TOP_ID=<<sync_user>>
+
+PRS_USER=prosync_<<sync_user>>
+PRS_PWD=#encrypted
+
+EXTRACT_NUM=1
+
+SRC_DB_TYPE=<<db_type>>
+SRC_DB_NAME=<<db_name>>
+
+ARCHIVE_LOG_DIR=<<archive_log_dir>>
+ARCHIVE_LOG_FORMAT=<<archive_log_format>>
+
+LOG_DIR=/home/prosync/prosync4_<<revision>>/var/<<sync_user>>/log
+LOG_BACKUP_DIR=/home/prosync/prosync4_<<revision>>/var/<<sync_user>>/log/backup
+
+CLIENT_DRIVER=<<client_driver>>
+
+TX_FILTER_KEY=(FILTER DEFAULT)
+ 
+# (Optional paramters)
+#LOG_LEVEL=3
+#LOG_FILE_SIZE=104857600
+#LOG_BACKUP_SIZE=0
+
+#LR_TRACE_LVL=1
+
+#EXTRACT_ARCHIVE_LOG_ONLY=N
+
