@@ -7,22 +7,11 @@ import java.util.ArrayList;
 
 
 public class test {
-//    private static String url = "jdbc:tibero:thin:@192.168.17.104:38629:tbsync1";
-//    private static String user = "tibero";
-//    private static String pwd = "tmax";
-//    private static String driver = "com.tmax.tibero.jdbc.TbDriver";
-//
 
-    public static Connection conn = null;
-
-    public void select(int id) {
-        StringBuilder sb = new StringBuilder();
-        String sql = sb.append("SELECT * FROM bitnami_testlink.nodes_hierarchy where parent_id = ").append(id).toString();
-
-    }
 
     public static void main(String[] args) throws SQLException, ClassNotFoundException {
         
+    Connection conn = null;
         try {
 //            String sql=args[0];
             // mysql 에서 tc id 추출 -> step 추출
@@ -48,18 +37,30 @@ public class test {
             //conn = DBConntion.getConnection("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax");
 
             Statement stmtDD = conn.createStatement();
-                
             StringBuilder sb = new StringBuilder();
             String sql = sb.append("SELECT * FROM bitnami_testlink.nodes_hierarchy where parent_id =409849").toString();
-            
             ResultSet rs = stmtDD.executeQuery(sql);
+
+
+            // TestCase타입의 ArrayList를 생성하겠다.
+            ArrayList<TestCase> tc = new ArrayList<TestCase>();
             
+
+            // 쿼리이 있을 때 까지 loop
             while(rs.next()){
-                System.out.println(rs.getInt("id"));
+                // 내용이 있으면 테스트케이스의 id + 제목의 내용을 ArrayList에 추가
+                tc.add(new TestCase(rs.getInt("id"), rs.getString("name")));
             }
 
             //stmtDD.executeUpdate(sql);
             //conn.commit();
+            
+
+            // ArrayList로 생성된 tc의 정보들을 조회
+            for(TestCase t : tc){
+                t.getTestCase();
+            }
+
         }
         finally {
             closeConnection(conn);
@@ -75,12 +76,30 @@ public class test {
     }
 }
 
+
 class TestCase
 {
-    int tcid;
-    String subject = null;
-    String precondition = null;
-    String step[] = null;
+    private int id;
+    private String subject;
+    private String precondition;
+    private String step[];
+
+    public TestCase(int id) {
+        this.id = id;
+    }
+    public TestCase(int id, String subject) {
+        this.id = id;
+        this.subject = subject;
+    }
+
+    public void setTestCaseId(int id) {
+        this.id = id;
+    }
+
+    public void getTestCase() {
+        System.out.println("tc id : " + this.id + ", subject : " + this.subject);
+    }
+
 }
 
 class DBConntion
