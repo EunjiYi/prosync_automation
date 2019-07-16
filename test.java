@@ -10,12 +10,13 @@ public class test {
         
     Connection conn = null;
         try {
-            // mysql 에서 tc id 추출 -> step 추출
-            // 추출된 step 정제 후 배열에 저장
-            // tc에 대한 precondition 케이스 소스/타겟 DB에 발생
-            // 소스DB 부하
+            // 전반적인 과정
+	    // 1) mysql(testlink) 에서 tc(testcase)의 id 추출 및 action 추출
+            // 2) 추출된 action을 정제 후(=html tag 제거 후) 배열로 저장
+            // 3) tc에 대한 precondition쿼리를 소스/타겟 DB에 날려줌
+            // 4) action에 있는 쿼리를 날려서 소스DB에 부하를 준다.
 
-            // 추후 파일 읽어서 db정보 저장
+            // testlink DB(mysql)에 접속 및 DB정보 저장
             DBConntion dbinfo = new DBConntion();
             dbinfo.setDbInfo("com.mysql.jdbc.Driver","jdbc:mysql://192.168.1.154:3307/bitnami_testlink","root","testlink"); 
             conn = dbinfo.getConnection();
@@ -31,7 +32,7 @@ public class test {
             // TestCase타입의 ArrayList를 생성하겠다.
             ArrayList<TestCase> tc = new ArrayList<TestCase>();
             
-            // 프로젝트의 testcase 내용을 조회
+            // testcase 내용을 조회
             int cnt=0;
             while(rs.next()){
                 // 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을 ArrayList에 추가
@@ -61,19 +62,23 @@ public class test {
             }
             closeConnection(conn);
             
+	    //소스 DB 접속
             dbinfo.setDbInfo("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax"); 
             conn = dbinfo.getConnection();
             stmtDD = conn.createStatement();
 
             for(int i = 0; i < tc.size(); i++) {
+		
+		//precondition의 html tag 제거 작업
                 tc.get(i).modifyPrecondition();
 
-                // DDL이 복수개도 고려, ';' 단위로 나눠서 수행
+                // precondition의 DDL이 복수개일 경우도 고려, 쿼리를 ';' 단위로 나눠서 수행한다.
                 String[] arr_precodition = tc.get(i).getPrecondition().split(";");
                 for(int n = 0; n < arr_precodition.length; n++) {
                     System.out.println(arr_precodition[n]);
                     stmtDD.executeQuery(arr_precodition[n]);
                 }
+                //action의 html tag 제거 작업
                 for(int j = 0; j < tc.get(i).getArraryAction().size(); j++) {
                     tc.get(i).modifyAction(j);
                     try {
@@ -108,12 +113,13 @@ class TestCase
     private ArrayList<String> action = new ArrayList<String>();
     private ArrayList<String> expected_result = new ArrayList<String>();
 
-    // 하나의 테이블에 케이스의 id,subject 정보가 있어서, 생성자에 정보를 입력 받을 수 있도록
+    // 하나의 테이블에 케이스의 id, subject 정보가 있어서, 생성자에 정보를 입력 받을 수 있도록
     public TestCase(int id, String subject, String precondition) {
         this.id = id;
         this.subject = subject;
         this.precondition = precondition;
     }
+    //Step = action 과 동일한 의미
     public void setStep(String action, String expected_result) {
         this.action.add(action);
         this.expected_result.add(expected_result);
@@ -124,17 +130,21 @@ class TestCase
         System.out.println("tc id : " + this.id + ", subject : " + this.subject);
         System.out.println("precondition : " + this.precondition);
     }
+    //Step = action 과 동일한 의미
     public void getStep() {
         for(int i = 0; i < this.action.size(); i++) {
             System.out.println(this.action.get(i));
         }
     }
+    //testlink의 precondition을 가져오는 메소드
     public String getPrecondition() {
         return this.precondition;
     }
+    //testlink의 action을 가져오는 메소드, action은 한 개의 test case 당 여러개이므로 arraylist로 선언.
     public ArrayList<String> getArraryAction() {
         return this.action;
     }
+    //testlink에서 바로 가져올 경우 html tag가 달린 상태로 쿼리가 받아짐. precondition의 html tag를 없애는 과정
     public void modifyPrecondition() {
         this.precondition = this.precondition.replaceAll("<p>", "");
         this.precondition = this.precondition.replaceAll("</p>", "");
@@ -143,6 +153,7 @@ class TestCase
         this.precondition = this.precondition.replaceAll("&#39;", "'");
         this.precondition = this.precondition.replaceAll("&nbsp;", " ");
     }
+    //testlink에서 바로 가져올 경우 html tag가 달린 상태로 쿼리가 받아짐. action의 html tag를 없애는 과정
     public void modifyAction(int index) {
         this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
         this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
@@ -157,13 +168,15 @@ class TestCase
 class DBConntion
 {
     private String driver, url, user, pwd;
-
+	 
+    //DB에 접속하기 위한 정보(driver, url, user, passwd)를 받는다.
     public void setDbInfo(String driver, String url, String user, String pwd) {
         this.driver = driver;
         this.url = url;
         this.user = user;
         this.pwd = pwd;
     }
+        //DB연결상태 출력
         public Connection getConnection()
         {
             Connection conn = null;
