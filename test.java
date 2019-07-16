@@ -6,193 +6,202 @@ import java.util.ArrayList;
 
 public class test {
 
-    public static void main(String[] args) throws ClassNotFoundException {
-        
-    Connection conn = null;
-        try {
-            // Àü¹İÀûÀÎ °úÁ¤
-	    // 1) mysql(testlink) ¿¡¼­ tc(testcase)ÀÇ id ÃßÃâ ¹× action ÃßÃâ
-            // 2) ÃßÃâµÈ actionÀ» Á¤Á¦ ÈÄ(=html tag Á¦°Å ÈÄ) ¹è¿­·Î ÀúÀå
-            // 3) tc¿¡ ´ëÇÑ preconditionÄõ¸®¸¦ ¼Ò½º/Å¸°Ù DB¿¡ ³¯·ÁÁÜ
-            // 4) action¿¡ ÀÖ´Â Äõ¸®¸¦ ³¯·Á¼­ ¼Ò½ºDB¿¡ ºÎÇÏ¸¦ ÁØ´Ù.
+	public static void main(String[] args) throws ClassNotFoundException {
 
-            // testlink DB(mysql)¿¡ Á¢¼Ó ¹× DBÁ¤º¸ ÀúÀå
-            DBConntion dbinfo = new DBConntion();
-            dbinfo.setDbInfo("com.mysql.jdbc.Driver","jdbc:mysql://192.168.1.154:3307/bitnami_testlink","root","testlink"); 
-            conn = dbinfo.getConnection();
+		Connection conn = null;
+		try {
+			// ì „ë°˜ì ì¸ ê³¼ì •
+			// 1) mysql(testlink) ì—ì„œ tc(testcase)ì˜ id ì¶”ì¶œ ë° action ì¶”ì¶œ
+			// 2) ì¶”ì¶œëœ actionì„ ì •ì œ í›„(=html tag ì œê±° í›„) ë°°ì—´ë¡œ ì €ì¥
+			// 3) tcì— ëŒ€í•œ preconditionì¿¼ë¦¬ë¥¼ ì†ŒìŠ¤/íƒ€ê²Ÿ DBì— ë‚ ë ¤ì¤Œ
+			// 4) actionì— ìˆëŠ” ì¿¼ë¦¬ë¥¼ ë‚ ë ¤ì„œ ì†ŒìŠ¤DBì— ë¶€í•˜ë¥¼ ì¤€ë‹¤.
 
-            //conn = DBConntion.getConnection("com.mysql.jdbc.Driver","jdbc:mysql://192.168.1.154:3307/bitnami_testlink","root","testlink");
-            //conn = DBConntion.getConnection("oracle.jdbc.driver.OracleDriver","jdbc:oracle:thin:@192.168.17.104:1521:orcl","tibero","tmax");
-            //conn = DBConntion.getConnection("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax");
+			// testlink DB(mysql)ì— ì ‘ì† ë° DBì •ë³´ ì €ì¥
+			DBConntion dbinfo = new DBConntion();
+			dbinfo.setDbInfo("com.mysql.jdbc.Driver", "jdbc:mysql://192.168.1.154:3307/bitnami_testlink", "root",
+					"testlink");
+			conn = dbinfo.getConnection();
 
-            Statement stmtDD = conn.createStatement();
-            String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b WHERE parent_id in (417990) and b.id=a.id+1";
-            ResultSet rs = stmtDD.executeQuery(sql);
+			// conn =
+			// DBConntion.getConnection("com.mysql.jdbc.Driver","jdbc:mysql://192.168.1.154:3307/bitnami_testlink","root","testlink");
+			// conn =
+			// DBConntion.getConnection("oracle.jdbc.driver.OracleDriver","jdbc:oracle:thin:@192.168.17.104:1521:orcl","tibero","tmax");
+			// conn =
+			// DBConntion.getConnection("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax");
 
-            // TestCaseÅ¸ÀÔÀÇ ArrayList¸¦ »ı¼ºÇÏ°Ú´Ù.
-            ArrayList<TestCase> tc = new ArrayList<TestCase>();
-            
-            // testcase ³»¿ëÀ» Á¶È¸
-            int cnt=0;
-            while(rs.next()){
-                // ³»¿ëÀÌ ÀÖÀ¸¸é Å×½ºÆ®ÄÉÀÌ½ºÀÇ id + subject + preconditions ³»¿ëÀ» ArrayList¿¡ Ãß°¡
-                tc.add(new TestCase(rs.getInt("id"), rs.getString("name"), rs.getString("preconditions")));
+			Statement stmtDD = conn.createStatement();
+			String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b WHERE parent_id in (417990) and b.id=a.id+1";
+			ResultSet rs = stmtDD.executeQuery(sql);
 
-                sql = "SELECT id FROM bitnami_testlink.nodes_hierarchy WHERE parent_id=" + rs.getInt("id");
-                Statement stmtDD1 = conn.createStatement();
-                ResultSet rs1 = stmtDD1.executeQuery(sql);
+			// TestCaseíƒ€ì…ì˜ ArrayListë¥¼ ìƒì„±í•˜ê² ë‹¤.
+			ArrayList<TestCase> tc = new ArrayList<TestCase>();
 
-                if(rs1 != null && rs1.isBeforeFirst()){
-                    sql = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
-                    
-                    while(rs1.next()){
-                        sql += rs1.getString("id") + ",";
-                    }
-                    sql=sql.substring(0,sql.length()-1);
-                    sql += ") order by step_number";
-    
-                    System.out.println(sql);
-                    rs1 = stmtDD1.executeQuery(sql);
-                    while(rs1.next()){
-                        tc.get(cnt).setStep(rs1.getString("actions"), rs1.getString("expected_results"));
-                    }
-                    cnt++;
-                }
+			// testcase ë‚´ìš©ì„ ì¡°íšŒ
+			int cnt = 0;
+			while (rs.next()) {
+				// ë‚´ìš©ì´ ìˆìœ¼ë©´ í…ŒìŠ¤íŠ¸ì¼€ì´ìŠ¤ì˜ id + subject + preconditions ë‚´ìš©ì„ ArrayListì— ì¶”ê°€
+				tc.add(new TestCase(rs.getInt("id"), rs.getString("name"), rs.getString("preconditions")));
 
-            }
-            closeConnection(conn);
-            
-	    //¼Ò½º DB Á¢¼Ó
-            dbinfo.setDbInfo("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax"); 
-            conn = dbinfo.getConnection();
-            stmtDD = conn.createStatement();
+				sql = "SELECT id FROM bitnami_testlink.nodes_hierarchy WHERE parent_id=" + rs.getInt("id");
+				Statement stmtDD1 = conn.createStatement();
+				ResultSet rs1 = stmtDD1.executeQuery(sql);
 
-            for(int i = 0; i < tc.size(); i++) {
-		
-		//preconditionÀÇ html tag Á¦°Å ÀÛ¾÷
-                tc.get(i).modifyPrecondition();
+				if (rs1 != null && rs1.isBeforeFirst()) {
+					sql = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
 
-                // preconditionÀÇ DDLÀÌ º¹¼ö°³ÀÏ °æ¿ìµµ °í·Á, Äõ¸®¸¦ ';' ´ÜÀ§·Î ³ª´²¼­ ¼öÇàÇÑ´Ù.
-                String[] arr_precodition = tc.get(i).getPrecondition().split(";");
-                for(int n = 0; n < arr_precodition.length; n++) {
-                    System.out.println(arr_precodition[n]);
-                    stmtDD.executeQuery(arr_precodition[n]);
-                }
-                //actionÀÇ html tag Á¦°Å ÀÛ¾÷
-                for(int j = 0; j < tc.get(i).getArraryAction().size(); j++) {
-                    tc.get(i).modifyAction(j);
-                    try {
-                        System.out.println(tc.get(i).getArraryAction().get(j));
-                        stmtDD.executeQuery(tc.get(i).getArraryAction().get(j));
-                    } catch(SQLException e) {
-                        e.printStackTrace();
-                    }
-                }   
-            }
+					while (rs1.next()) {
+						sql += rs1.getString("id") + ",";
+					}
+					sql = sql.substring(0, sql.length() - 1);
+					sql += ") order by step_number";
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            closeConnection(conn);
-        }
-    }
-    private static void closeConnection(final Connection conn) {
-        try {
-            if (conn != null)
-                conn.close();
-                System.out.println("DB ¿¬°á ÇØÁ¦");
-        } catch (Exception e) {
-        }
-    }
+					System.out.println(sql);
+					rs1 = stmtDD1.executeQuery(sql);
+					while (rs1.next()) {
+						tc.get(cnt).setStep(rs1.getString("actions"), rs1.getString("expected_results"));
+					}
+					cnt++;
+				}
+
+			}
+			closeConnection(conn);
+
+			// ì†ŒìŠ¤ DB ì ‘ì†
+			dbinfo.setDbInfo("com.tmax.tibero.jdbc.TbDriver", "jdbc:tibero:thin:@192.168.17.104:38629:tbsync1",
+					"tibero", "tmax");
+			conn = dbinfo.getConnection();
+			stmtDD = conn.createStatement();
+
+			for (int i = 0; i < tc.size(); i++) {
+				// preconditionì˜ tag ì œê±° ì‘ì—…
+				tc.get(i).modifyPrecondition();
+
+				// preconditionì˜ DDLì´ ë³µìˆ˜ê°œì¼ ê²½ìš°ë„ ê³ ë ¤, ì¿¼ë¦¬ë¥¼ ';' ë‹¨ìœ„ë¡œ ë‚˜ëˆ ì„œ ìˆ˜í–‰í•œë‹¤.
+				String[] arr_precodition = tc.get(i).getPrecondition().split(";");
+				for (int n = 0; n < arr_precodition.length; n++) {
+					System.out.println(arr_precodition[n]);
+					stmtDD.executeQuery(arr_precodition[n]);
+				}
+				// actionì˜ html tag ì œê±° ì‘ì—…
+				for (int j = 0; j < tc.get(i).getArraryAction().size(); j++) {
+					tc.get(i).modifyAction(j);
+					try {
+						System.out.println(tc.get(i).getArraryAction().get(j));
+						stmtDD.executeQuery(tc.get(i).getArraryAction().get(j));
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			closeConnection(conn);
+		}
+	}
+
+	private static void closeConnection(final Connection conn) {
+		try {
+			if (conn != null)
+				conn.close();
+			System.out.println("DB ì—°ê²° í•´ì œ");
+		} catch (Exception e) {
+		}
+	}
 }
 
-class TestCase
-{
-    private int id;
-    private String subject, precondition;
-    private ArrayList<String> action = new ArrayList<String>();
-    private ArrayList<String> expected_result = new ArrayList<String>();
+class TestCase {
+	private int id;
+	private String subject, precondition;
+	private ArrayList<String> action = new ArrayList<String>();
+	private ArrayList<String> expected_result = new ArrayList<String>();
 
-    // ÇÏ³ªÀÇ Å×ÀÌºí¿¡ ÄÉÀÌ½ºÀÇ id, subject Á¤º¸°¡ ÀÖ¾î¼­, »ı¼ºÀÚ¿¡ Á¤º¸¸¦ ÀÔ·Â ¹ŞÀ» ¼ö ÀÖµµ·Ï
-    public TestCase(int id, String subject, String precondition) {
-        this.id = id;
-        this.subject = subject;
-        this.precondition = precondition;
-    }
-    //Step = action °ú µ¿ÀÏÇÑ ÀÇ¹Ì
-    public void setStep(String action, String expected_result) {
-        this.action.add(action);
-        this.expected_result.add(expected_result);
-    }
+	// ìƒì„±ìì—ì„œ tcë¥¼ ìƒì„±í•˜ë©´ì„œ id, subject, precondition ì •ë³´ë¥¼ ì…ë ¥ ë°›ìŒ
+	public TestCase(int id, String subject, String precondition) {
+		this.id = id;
+		this.subject = subject;
+		this.precondition = precondition;
+	}
 
-    // ÀÓ½Ã
-    public void getTestCase() {
-        System.out.println("tc id : " + this.id + ", subject : " + this.subject);
-        System.out.println("precondition : " + this.precondition);
-    }
-    //Step = action °ú µ¿ÀÏÇÑ ÀÇ¹Ì
-    public void getStep() {
-        for(int i = 0; i < this.action.size(); i++) {
-            System.out.println(this.action.get(i));
-        }
-    }
-    //testlinkÀÇ preconditionÀ» °¡Á®¿À´Â ¸Ş¼Òµå
-    public String getPrecondition() {
-        return this.precondition;
-    }
-    //testlinkÀÇ actionÀ» °¡Á®¿À´Â ¸Ş¼Òµå, actionÀº ÇÑ °³ÀÇ test case ´ç ¿©·¯°³ÀÌ¹Ç·Î arraylist·Î ¼±¾ğ.
-    public ArrayList<String> getArraryAction() {
-        return this.action;
-    }
-    //testlink¿¡¼­ ¹Ù·Î °¡Á®¿Ã °æ¿ì html tag°¡ ´Ş¸° »óÅÂ·Î Äõ¸®°¡ ¹Ş¾ÆÁü. preconditionÀÇ html tag¸¦ ¾ø¾Ö´Â °úÁ¤
-    public void modifyPrecondition() {
-        this.precondition = this.precondition.replaceAll("<p>", "");
-        this.precondition = this.precondition.replaceAll("</p>", "");
-        this.precondition = this.precondition.replaceAll("<br />", "");
-        this.precondition = this.precondition.replaceAll("(\r|\n|\r\n|\n\r)", "");
-        this.precondition = this.precondition.replaceAll("&#39;", "'");
-        this.precondition = this.precondition.replaceAll("&nbsp;", " ");
-    }
-    //testlink¿¡¼­ ¹Ù·Î °¡Á®¿Ã °æ¿ì html tag°¡ ´Ş¸° »óÅÂ·Î Äõ¸®°¡ ¹Ş¾ÆÁü. actionÀÇ html tag¸¦ ¾ø¾Ö´Â °úÁ¤
-    public void modifyAction(int index) {
-        this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
-        this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
-        this.action.set(index, this.action.get(index).replaceAll("<br />", ""));
-        this.action.set(index, this.action.get(index).replaceAll("&lt;", "<"));
-        this.action.set(index, this.action.get(index).replaceAll("&gt;", ">"));
-        this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
-        this.action.set(index, this.action.get(index).replaceAll("&nbsp;", " "));
-    }
+	// Step = action ê³¼ ë™ì¼í•œ ì˜ë¯¸
+	public void setStep(String action, String expected_result) {
+		this.action.add(action);
+		this.expected_result.add(expected_result);
+	}
+
+	// ì„ì‹œ
+	public void getTestCase() {
+		System.out.println("tc id : " + this.id + ", subject : " + this.subject);
+		System.out.println("precondition : " + this.precondition);
+	}
+
+	// Step = action ê³¼ ë™ì¼í•œ ì˜ë¯¸
+	public void getStep() {
+		for (int i = 0; i < this.action.size(); i++) {
+			System.out.println(this.action.get(i));
+		}
+	}
+
+	// testlinkì˜ preconditionì„ ê°€ì ¸ì˜¤ëŠ” ë©”ì†Œë“œ
+	public String getPrecondition() {
+		return this.precondition;
+	}
+
+	// testlinkì˜ actionì„ ê°€ì ¸ì˜¤ëŠ” ë©”ì†Œë“œ, actionì€ í•œ ê°œì˜ test case ë‹¹ ì—¬ëŸ¬ê°œì´ë¯€ë¡œ arraylistë¡œ ì„ ì–¸
+	public ArrayList<String> getArraryAction() {
+		return this.action;
+	}
+
+	// testlinkì—ì„œ ë°”ë¡œ ê°€ì ¸ì˜¬ ê²½ìš° html tagê°€ ë‹¬ë¦° ìƒíƒœë¡œ ì¿¼ë¦¬ê°€ ë°›ì•„ì§. preconditionì˜ html tagë¥¼ ì—†ì• ëŠ” ê³¼ì •
+	public void modifyPrecondition() {
+		this.precondition = this.precondition.replaceAll("<p>", "");
+		this.precondition = this.precondition.replaceAll("</p>", "");
+		this.precondition = this.precondition.replaceAll("<br />", "");
+		this.precondition = this.precondition.replaceAll("(\r|\n|\r\n|\n\r)", "");
+		this.precondition = this.precondition.replaceAll("&#39;", "'");
+		this.precondition = this.precondition.replaceAll("&nbsp;", " ");
+	}
+
+	// testlinkì—ì„œ ë°”ë¡œ ê°€ì ¸ì˜¬ ê²½ìš° HTML tagê°€ ë‹¬ë¦° ìƒíƒœë¡œ ì¿¼ë¦¬ê°€ ë°›ì•„ì§. actionì˜ html tagë¥¼ ì—†ì• ëŠ” ê³¼ì •
+	public void modifyAction(int index) {
+		this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
+		this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
+		this.action.set(index, this.action.get(index).replaceAll("<br />", ""));
+		this.action.set(index, this.action.get(index).replaceAll("&lt;", "<"));
+		this.action.set(index, this.action.get(index).replaceAll("&gt;", ">"));
+		this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
+		this.action.set(index, this.action.get(index).replaceAll("&nbsp;", " "));
+	}
 }
 
-class DBConntion
-{
-    private String driver, url, user, pwd;
-	 
-    //DB¿¡ Á¢¼ÓÇÏ±â À§ÇÑ Á¤º¸(driver, url, user, passwd)¸¦ ¹Ş´Â´Ù.
-    public void setDbInfo(String driver, String url, String user, String pwd) {
-        this.driver = driver;
-        this.url = url;
-        this.user = user;
-        this.pwd = pwd;
-    }
-        //DB¿¬°á»óÅÂ Ãâ·Â
-        public Connection getConnection()
-        {
-            Connection conn = null;
-            try {
-                Class.forName(this.driver);
-                conn = DriverManager.getConnection(this.url, this.user, this.pwd);
+class DBConntion {
+	private String driver, url, user, pwd;
 
-                System.out.println("DB ¿¬°á");
-                } catch (ClassNotFoundException cnfe) {
-                    System.out.println("DB µå¶óÀÌ¹ö ·Îµù ½ÇÆĞ :"+cnfe.toString());
-                } catch (SQLException sqle) {
-                    System.out.println("DB Á¢¼Ó½ÇÆĞ : "+sqle.toString());
-                } catch (Exception e) {
-                    System.out.println("Unkonwn error");
-                    e.printStackTrace();
-                }
-                return conn;
-        }
+	// DBì— ì ‘ì†í•˜ê¸° ìœ„í•œ ì •ë³´(driver, url, user, passwd)ë¥¼ ë°›ëŠ”ë‹¤
+	public void setDbInfo(String driver, String url, String user, String pwd) {
+		this.driver = driver;
+		this.url = url;
+		this.user = user;
+		this.pwd = pwd;
+	}
+
+	// DBì—°ê²°ìƒíƒœ ì¶œë ¥
+	public Connection getConnection() {
+		Connection conn = null;
+		try {
+			Class.forName(this.driver);
+			conn = DriverManager.getConnection(this.url, this.user, this.pwd);
+
+			System.out.println("DB ì—°ê²°");
+		} catch (ClassNotFoundException cnfe) {
+            System.out.println("DB ë“œë¼ì´ë²„ ë¡œë”© ì‹¤íŒ¨ :"+cnfe.toString());
+		} catch (SQLException sqle) {
+            System.out.println("DB ì ‘ì†ì‹¤íŒ¨ : "+sqle.toString());
+		} catch (Exception e) {
+			System.out.println("Unkonwn error");
+			e.printStackTrace();
+		}
+		return conn;
+	}
 }
