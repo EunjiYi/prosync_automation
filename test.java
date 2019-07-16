@@ -95,18 +95,20 @@ public class test {
 			stmtDD = conn.createStatement();
 
 			for (int i = 0; i < tc.size(); i++) {
-				// precondition의 tag 제거 작업
+				// precondition/action의 tag 제거 작업
 				tc.get(i).modifyPrecondition();
+				tc.get(i).modifyActions();
 
 				// precondition의 DDL이 복수개일 경우도 고려, 쿼리를 ';' 단위로 나눠서 수행한다.
-				String[] arr_precodition = tc.get(i).getPrecondition().split(";");
-				for (int n = 0; n < arr_precodition.length; n++) {
-					System.out.println(arr_precodition[n]);
-					stmtDD.executeQuery(arr_precodition[n]);
+				String[] precoditions = tc.get(i).getPrecondition().split(";");
+				for (int n = 0; n < precoditions.length; n++) {
+					System.out.println(precoditions[n]);
+					stmtDD.executeQuery(precoditions[n]);
 				}
-				// action의 HTML tag 제거 작업
+
+				// action(DML)을 SRC DB에 수행 - DML을 의도적으로 실패하는 케이스가 있으므로 try문 안에서 수행(안할 경우 java수행이 멈춤)
 				for (int j = 0; j < tc.get(i).getArraryAction().size(); j++) {
-					tc.get(i).modifyAction(j);
+					//tc.get(i).modifyAction(j);
 					try {
 						System.out.println(tc.get(i).getArraryAction().get(j));
 						stmtDD.executeQuery(tc.get(i).getArraryAction().get(j));
@@ -175,7 +177,7 @@ class TestCase {
 		return this.action;
 	}
 
-	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. precondition의 html tag를 없애는 과정
+	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. precondition의 HTML tag를 없애는 과정
 	public void modifyPrecondition() {
 		this.precondition = this.precondition.replaceAll("<p>", "");
 		this.precondition = this.precondition.replaceAll("</p>", "");
@@ -185,7 +187,7 @@ class TestCase {
 		this.precondition = this.precondition.replaceAll("&nbsp;", " ");
 	}
 
-	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. action의 html tag를 없애는 과정
+	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. action의 HTML tag를 없애는 과정
 	public void modifyAction(int index) {
 		this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
 		this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
@@ -194,6 +196,18 @@ class TestCase {
 		this.action.set(index, this.action.get(index).replaceAll("&gt;", ">"));
 		this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
 		this.action.set(index, this.action.get(index).replaceAll("&nbsp;", " "));
+	}
+	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. action의 HTML tag를 없애는 과정
+	public void modifyActions() {
+		for(int i=0; i<this.action.size(); i++) {
+			this.action.set(i, this.action.get(i).replaceAll("<p>", ""));
+			this.action.set(i, this.action.get(i).replaceAll("</p>", ""));
+			this.action.set(i, this.action.get(i).replaceAll("<br />", ""));
+			this.action.set(i, this.action.get(i).replaceAll("&lt;", "<"));
+			this.action.set(i, this.action.get(i).replaceAll("&gt;", ">"));
+			this.action.set(i, this.action.get(i).replaceAll("&#39;", "'"));
+			this.action.set(i, this.action.get(i).replaceAll("&nbsp;", " "));
+		}
 	}
 }
 
