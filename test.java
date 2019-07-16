@@ -8,8 +8,7 @@ import java.util.ArrayList;
 
 public class test {
 
-
-    public static void main(String[] args) throws SQLException, ClassNotFoundException {
+    public static void main(String[] args) throws ClassNotFoundException {
         
     Connection conn = null;
         try {
@@ -28,7 +27,7 @@ public class test {
             //conn = DBConntion.getConnection("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax");
 
             Statement stmtDD = conn.createStatement();
-            String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b WHERE parent_id=417990 and b.id=a.id+1";
+            String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b WHERE parent_id in (417990) and b.id=a.id+1";
             ResultSet rs = stmtDD.executeQuery(sql);
 
             // TestCase타입의 ArrayList를 생성하겠다.
@@ -44,44 +43,47 @@ public class test {
                 Statement stmtDD1 = conn.createStatement();
                 ResultSet rs1 = stmtDD1.executeQuery(sql);
 
-                sql = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
-                
-                rs1.next();
-                sql += rs1.getString("id");
-                while(rs1.next()){
-                    sql += "," + rs1.getString("id");
+                if(rs1 != null && rs1.isBeforeFirst()){
+                    sql = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
+                    
+                    while(rs1.next()){
+                        sql += rs1.getString("id") + ",";
+                    }
+                    sql=sql.substring(0,sql.length()-1);
+                    sql += ") order by step_number";
+    
+                    System.out.println(sql);
+                    rs1 = stmtDD1.executeQuery(sql);
+                    while(rs1.next()){
+                        tc.get(cnt).setStep(rs1.getString("actions"), rs1.getString("expected_results"));
+                    }
+                    cnt++;
                 }
-                sql += ") order by step_number";
 
-                System.out.println(sql);
-                rs1 = stmtDD1.executeQuery(sql);
-                while(rs1.next()){
-                    tc.get(cnt).setStep(rs1.getString("actions"), rs1.getString("expected_results"));
-                }
-                cnt++;
             }
             closeConnection(conn);
             
-            // ArrayList로 생성된 tc의 정보들을 조회
-            for(TestCase t : tc){
-                //t.getTestCase();
-                //t.getStep();
-            }
             dbinfo.setDbInfo("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax"); 
             conn = dbinfo.getConnection();
             stmtDD = conn.createStatement();
 
-            System.out.println(tc.size());
-
             for(int i = 0; i < tc.size(); i++) {
                 String tmp = tc.get(i).getPrecondition();
+//                tc.get(i).b_precondition_replace();
+//                tc.get(i).b_action_replace();
                 tmp = tmp.replaceAll("<p>", "");
                 tmp = tmp.replaceAll("</p>", "");
                 tmp = tmp.replaceAll("<br />", "");
-                tmp = tmp.replaceAll("/", "");
                 tmp = tmp.replaceAll("(\r|\n|\r\n|\n\r)", "");
-                System.out.println(tmp);
-                stmtDD.executeQuery(tmp);
+                tmp = tmp.replaceAll("&#39;", "'");
+                tmp = tmp.replaceAll("&nbsp;", " ");
+
+                // DDL이 복수개도 고려, ';' 단위로 나눠서 수행
+                String[] precodition_arr = tmp.split(";");
+                for(int n = 0; n < precodition_arr.length; n++) {
+                    System.out.println(precodition_arr[n]);
+                    stmtDD.executeQuery(precodition_arr[n]);
+                }
     
                 ArrayList<String> a = tc.get(i).getArraryAction();
                 for(int j = 0; j < a.size(); j++) {
@@ -89,14 +91,23 @@ public class test {
                     a.set(j, a.get(j).replaceAll("</p>", ""));
                     a.set(j, a.get(j).replaceAll("&lt;", "<"));
                     a.set(j, a.get(j).replaceAll("&gt;", ">"));
+                    a.set(j, a.get(j).replaceAll("&#39;", "'"));
+                    a.set(j, a.get(j).replaceAll("&nbsp;", " "));
                     stmtDD.executeQuery(a.get(j));
+                    //stmtDD.executeQuery((tc.get(i).getArraryAction().get(j));
                     System.out.println(a.get(j));
                 }   
             }
 
-        }
+        } catch (SQLException e) {
+            System.out.println(e.getErrorCode());
+            if (e.getErrorCode() == -7102)
+            {
+                System.out.println("aaa");
+            }
 
-        finally {
+            e.printStackTrace();
+        } finally {
             closeConnection(conn);
         }
     }
@@ -143,6 +154,12 @@ class TestCase
     }
     public ArrayList<String> getArraryAction() {
         return this.action;
+    }
+    public void b_precondition_replace() {
+        this.precondition = this.precondition.replaceAll("<p>", "");
+    }
+    public void b_action_replace(int index) {
+        this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
     }
 }
 
