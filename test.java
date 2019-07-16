@@ -8,11 +8,33 @@ public class test {
 
 	public static void main(String[] args) throws ClassNotFoundException {
 
+		// argument non
+		// TestCaseCollection + DatabaseTableCreate + 프로싱크 설치 및 기동 + DatabaseLoader
+
+		// argument CreateTable
+		// TestCaseCollection(setPrecondition)+DatabaseTableCreate(SRC/TAR TableCreate)
+
+		// argument Loader
+		// TestCaseCollection(setAction)+DatabaseLoader(SRC DML execute)
+
+		// TestCaseCollection
+		//// setPrecondition(); - TestCase->id, precondition value setting)
+		//// setAction(); - TestCase->action value setting)
+
+		// DatabaseTableCreate
+		//// SRC/TAR DB connection();
+		//// SRC/TAR DB runSQL(); - getPrecondition
+
+		// DatabaseLoader
+		//// SRC/TAR DB connection();
+		//// SRC DB runSQL(); - getAction
+		//// SRC/TAR DB check(); - verify
+
 		Connection conn = null;
 		try {
 			// 전반적인 과정
 			// 1) mysql(testlink) 에서 tc(testcase)의 id 추출 및 action 추출
-			// 2) 추출된 action을 정제 후(=html tag 제거 후) 배열로 저장
+			// 2) 추출된 action을 정제 후(=HTML tag 제거 후) 배열로 저장
 			// 3) tc에 대한 precondition쿼리를 소스/타겟 DB에 날려줌
 			// 4) action에 있는 쿼리를 날려서 소스DB에 부하를 준다.
 
@@ -82,7 +104,7 @@ public class test {
 					System.out.println(arr_precodition[n]);
 					stmtDD.executeQuery(arr_precodition[n]);
 				}
-				// action의 html tag 제거 작업
+				// action의 HTML tag 제거 작업
 				for (int j = 0; j < tc.get(i).getArraryAction().size(); j++) {
 					tc.get(i).modifyAction(j);
 					try {
@@ -153,7 +175,7 @@ class TestCase {
 		return this.action;
 	}
 
-	// testlink에서 바로 가져올 경우 html tag가 달린 상태로 쿼리가 받아짐. precondition의 html tag를 없애는 과정
+	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. precondition의 html tag를 없애는 과정
 	public void modifyPrecondition() {
 		this.precondition = this.precondition.replaceAll("<p>", "");
 		this.precondition = this.precondition.replaceAll("</p>", "");
@@ -192,12 +214,11 @@ class DBConntion {
 		try {
 			Class.forName(this.driver);
 			conn = DriverManager.getConnection(this.url, this.user, this.pwd);
-
 			System.out.println("DB 연결");
 		} catch (ClassNotFoundException cnfe) {
-            System.out.println("DB 드라이버 로딩 실패 :"+cnfe.toString());
+			System.out.println("DB 드라이버 로딩 실패 :" + cnfe.toString());
 		} catch (SQLException sqle) {
-            System.out.println("DB 접속실패 : "+sqle.toString());
+			System.out.println("DB 접속실패 : " + sqle.toString());
 		} catch (Exception e) {
 			System.out.println("Unkonwn error");
 			e.printStackTrace();
