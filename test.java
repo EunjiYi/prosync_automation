@@ -68,34 +68,19 @@ public class test {
             stmtDD = conn.createStatement();
 
             for(int i = 0; i < tc.size(); i++) {
-                String tmp = tc.get(i).getPrecondition();
-//                tc.get(i).b_precondition_replace();
-//                tc.get(i).b_action_replace();
-                tmp = tmp.replaceAll("<p>", "");
-                tmp = tmp.replaceAll("</p>", "");
-                tmp = tmp.replaceAll("<br />", "");
-                tmp = tmp.replaceAll("(\r|\n|\r\n|\n\r)", "");
-                tmp = tmp.replaceAll("&#39;", "'");
-                tmp = tmp.replaceAll("&nbsp;", " ");
+                tc.get(i).PreconditionReplace();
 
                 // DDL이 복수개도 고려, ';' 단위로 나눠서 수행
-                String[] precodition_arr = tmp.split(";");
+                String[] precodition_arr = tc.get(i).getPrecondition().split(";");
                 for(int n = 0; n < precodition_arr.length; n++) {
                     System.out.println(precodition_arr[n]);
                     stmtDD.executeQuery(precodition_arr[n]);
                 }
     
-                ArrayList<String> a = tc.get(i).getArraryAction();
-                for(int j = 0; j < a.size(); j++) {
-                    a.set(j, a.get(j).replaceAll("<p>", ""));
-                    a.set(j, a.get(j).replaceAll("</p>", ""));
-                    a.set(j, a.get(j).replaceAll("&lt;", "<"));
-                    a.set(j, a.get(j).replaceAll("&gt;", ">"));
-                    a.set(j, a.get(j).replaceAll("&#39;", "'"));
-                    a.set(j, a.get(j).replaceAll("&nbsp;", " "));
-                    stmtDD.executeQuery(a.get(j));
-                    //stmtDD.executeQuery((tc.get(i).getArraryAction().get(j));
-                    System.out.println(a.get(j));
+                for(int j = 0; j < tc.get(i).getArraryAction().size(); j++) {
+		    tc.get(i).ActionReplace(j);
+                    stmtDD.executeQuery(tc.get(i).getArraryAction().get(j));
+                    System.out.println(tc.get(i).getArraryAction().get(j));
                 }   
             }
 
@@ -155,11 +140,22 @@ class TestCase
     public ArrayList<String> getArraryAction() {
         return this.action;
     }
-    public void b_precondition_replace() {
+    public void PreconditionReplace() {
         this.precondition = this.precondition.replaceAll("<p>", "");
+	this.precondition = this.precondition.replaceAll("</p>", "");
+	this.precondition = this.precondition.replaceAll("<br />", "");
+	this.precondition = this.precondition.replaceAll("(\r|\n|\r\n|\n\r)", "");
+	this.precondition = this.precondition.replaceAll("&#39;", "'");
+	this.precondition = this.precondition.replaceAll("&nbsp;", " ");
     }
-    public void b_action_replace(int index) {
+    public void ActionReplace(int index) {
         this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
+	this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
+	this.action.set(index, this.action.get(index).replaceAll("<br />", ""));
+        this.action.set(index, this.action.get(index).replaceAll("&lt;", "<"));
+        this.action.set(index, this.action.get(index).replaceAll("&gt;", ">"));
+        this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
+        this.action.set(index, this.action.get(index).replaceAll("&nbsp;", " "));
     }
 }
 
