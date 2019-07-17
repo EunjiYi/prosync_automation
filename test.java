@@ -1,7 +1,5 @@
 import com.tmax.tibero.jdbc.driver.TbConnection;
 import java.sql.*;
-
-import java.sql.ResultSet;
 import java.util.ArrayList;
 
 public class test {
@@ -31,6 +29,7 @@ public class test {
 		//// SRC/TAR DB check(); - verify
 
 		Connection conn = null;
+
 		try {
 			// 전반적인 과정
 			// 1) mysql(testlink) 에서 tc(testcase)의 id 추출 및 action 추출
@@ -39,30 +38,61 @@ public class test {
 			// 4) action에 있는 쿼리를 날려서 소스DB에 부하를 준다.
 
 			// testlink DB(mysql)에 접속 및 DB정보 저장
-			DBConntion dbinfo = new DBConntion();
-			dbinfo.setDbInfo("com.mysql.jdbc.Driver", "jdbc:mysql://192.168.1.154:3307/bitnami_testlink", "root",
+			DBConnection dbinfo = new DBConnection();
+			SqlJob sj = new SqlJob();
+
+			// index 0 : testlink, 1 : srcdb, 2 : tardb
+			// srcㅡtar DB 정보 추가 설정 필요
+			dbinfo.setDbInfo(0, "com.mysql.jdbc.Driver", "jdbc:mysql://192.168.1.154:3307/bitnami_testlink", "root",
 					"testlink");
-			conn = dbinfo.getConnection();
+			dbinfo.setDbInfo(1, "com.tmax.tibero.jdbc.TbDriver", "jdbc:tibero:thin:@192.168.17.104:38629:tbsync1",
+					"tibero", "tmax");
+			dbinfo.setDbInfo(2, "oracle.jdbc.driver.OracleDriver", "jdbc:oracle:thin:@192.168.17.104:1521:orcl",
+					"tibero", "tmax");
+			conn = dbinfo.getConnection(0);
 
-			// conn =
-			// DBConntion.getConnection("com.mysql.jdbc.Driver","jdbc:mysql://192.168.1.154:3307/bitnami_testlink","root","testlink");
-			// conn =
-			// DBConntion.getConnection("oracle.jdbc.driver.OracleDriver","jdbc:oracle:thin:@192.168.17.104:1521:orcl","tibero","tmax");
-			// conn =
-			// DBConntion.getConnection("com.tmax.tibero.jdbc.TbDriver","jdbc:tibero:thin:@192.168.17.104:38629:tbsync1","tibero","tmax");
+			// conn.commit(); // 커밋 하기
+			// conn.rollback(); // 롤백 하기
 
-			Statement stmtDD = conn.createStatement();
-			String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b WHERE parent_id in (417990) and b.id=a.id+1";
-			ResultSet rs = stmtDD.executeQuery(sql);
+			// TestCaseCollection Precondition 가져오기
+			// DoGetTestCase(conn);
+
+			Statement stmtDD = null;
+			String sql = null;
+			ResultSet rs = sj.selectTCversion(conn);
 
 			// TestCase타입의 ArrayList를 생성하겠다.
 			ArrayList<TestCase> tc = new ArrayList<TestCase>();
+			ArrayList<TestCasePrecondition> tcPre = new ArrayList<TestCasePrecondition>();
+			ArrayList<TestCaseStep> tcStep = new ArrayList<TestCaseStep>();
 
+			// TestCaseRegsiter
+			TestCaseRegsiter tr = new TestCaseRegsiter();
+			tr.addPrecondition(tcPre, rs);
+
+			for (int i = 0; i < tcPre.size(); i++) {
+				rs = sj.selectTCstep(conn, tcPre.get(i).getId());
+				tr.addStep(tcStep, rs);
+			}
+
+			// to do list
+			// SqlJob -> executeQry()에 인자값을 precondition/action으로 줘서 쿼리 수행하기
+			for (int i = 0; i < tcPre.size(); i++) {
+				System.out.println(tcPre.get(i).getPrecondition());
+				// SqlJob -> executeQry(tcPre.get(i).getPrecondition())
+				for (int j = 0; j < tcStep.get(i).getActionSize(); j++) {
+					System.out.println(tcStep.get(i).getAction(j));
+					// SqlJob -> executeQry(tcStep.get(i).getAction(j))
+				}
+			}
+
+			System.exit(1);
 			// testcase 내용을 조회
 			int cnt = 0;
 			while (rs.next()) {
 				// 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을 ArrayList에 추가
-				tc.add(new TestCase(rs.getInt("id"), rs.getString("name"), rs.getString("preconditions")));
+				// tc.add(new TestCase(rs.getInt("id"), rs.getString("name"),
+				// rs.getString("preconditions")));
 
 				sql = "SELECT id FROM bitnami_testlink.nodes_hierarchy WHERE parent_id=" + rs.getInt("id");
 				Statement stmtDD1 = conn.createStatement();
@@ -82,16 +112,14 @@ public class test {
 					while (rs1.next()) {
 						tc.get(cnt).setStep(rs1.getString("actions"), rs1.getString("expected_results"));
 					}
-					cnt++;
 				}
-
+				cnt++;
 			}
 			closeConnection(conn);
 
 			// 소스 DB 접속
-			dbinfo.setDbInfo("com.tmax.tibero.jdbc.TbDriver", "jdbc:tibero:thin:@192.168.17.104:38629:tbsync1",
-					"tibero", "tmax");
-			conn = dbinfo.getConnection();
+
+			conn = dbinfo.getConnection(1);
 			stmtDD = conn.createStatement();
 
 			for (int i = 0; i < tc.size(); i++) {
@@ -106,17 +134,24 @@ public class test {
 					stmtDD.executeQuery(precoditions[n]);
 				}
 
-				// action(DML)을 SRC DB에 수행 - DML을 의도적으로 실패하는 케이스가 있으므로 try문 안에서 수행(안할 경우 java수행이 멈춤)
+				// action(DML)을 SRC DB에 수행 - DML을 의도적으로 실패하는 케이스가 있으므로 try문 안에서 수행(안할 경우 java수행이
+				// 멈춤)
 				for (int j = 0; j < tc.get(i).getArraryAction().size(); j++) {
-					//tc.get(i).modifyAction(j);
+					// tc.get(i).modifyAction(j);
 					try {
 						System.out.println(tc.get(i).getArraryAction().get(j));
 						stmtDD.executeQuery(tc.get(i).getArraryAction().get(j));
+						// conn.commit(); // Step action 단위 커밋 하기
+						// check();
 					} catch (SQLException e) {
 						e.printStackTrace();
 					}
 				}
+				// conn.commit(); // Test Case 단위 커밋 하기
+				// check();
 			}
+			// conn.commit(); // Test Suite 단위 커밋 하기
+			// check();
 
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -135,6 +170,124 @@ public class test {
 	}
 }
 
+class TestCaseRegsiter {
+	private ResultSet rs = null;
+
+	public ArrayList<TestCasePrecondition> addPrecondition(ArrayList<TestCasePrecondition> tcPre, ResultSet rs)
+			throws SQLException {
+		this.rs = rs;
+		while (this.rs.next()) {
+			// 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을 ArrayList에 추가
+			tcPre.add(new TestCasePrecondition(this.rs.getInt("id"), this.rs.getString("name"),
+					this.rs.getString("preconditions")));
+			tcPre.get(tcPre.size() - 1).modifyPrecondition();
+		}
+		return tcPre;
+	}
+
+	public ArrayList<TestCaseStep> addStep(ArrayList<TestCaseStep> tcStep, ResultSet rs) throws SQLException {
+		tcStep.add(new TestCaseStep());
+		while (rs.next()) {
+			tcStep.get(tcStep.size() - 1).setStep(rs.getString("actions"), rs.getString("expected_results"));
+			tcStep.get(tcStep.size() - 1).modifyAction(tcStep.get(tcStep.size() - 1).getActionSize() - 1);
+		}
+		return tcStep;
+	}
+}
+
+class SqlJob {
+	private Statement stmt = null;
+	private ResultSet rs, rs1 = null;
+
+	public ResultSet selectTCversion(Connection conn) throws SQLException {
+		String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b WHERE parent_id in (417990) and b.id=a.id+1";
+		this.stmt = conn.createStatement();
+		this.rs = this.stmt.executeQuery(sql);
+		return this.rs;
+	}
+
+	public ResultSet selectTCstep(Connection conn, int id) throws SQLException {
+		String sql = "SELECT id FROM bitnami_testlink.nodes_hierarchy WHERE parent_id=" + id;
+		String sql1 = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
+		stmt = conn.createStatement();
+		this.rs = stmt.executeQuery(sql);
+		if (this.rs != null && this.rs.isBeforeFirst()) {
+			while (this.rs.next()) {
+				sql1 += this.rs.getString("id") + ",";
+			}
+			sql1 = sql1.substring(0, sql1.length() - 1);
+			sql1 += ") order by step_number";
+			this.rs1 = stmt.executeQuery(sql1);
+		}
+		return this.rs1;
+	}
+
+	public void executeQry() {
+
+	}
+}
+
+class TestCasePrecondition {
+	private int id;
+	private String subject, precondition;
+
+	public TestCasePrecondition(int id, String subject, String precondition) {
+		this.id = id;
+		this.subject = subject;
+		this.precondition = precondition;
+	}
+
+	public int getId() {
+		return this.id;
+	}
+
+	public String getPrecondition() {
+		return this.precondition;
+	}
+
+	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. precondition의 HTML tag를 없애는 과정
+	public void modifyPrecondition() {
+		this.precondition = this.precondition.replaceAll("<p>", "");
+		this.precondition = this.precondition.replaceAll("</p>", "");
+		this.precondition = this.precondition.replaceAll("<br />", "");
+		this.precondition = this.precondition.replaceAll("(\r|\n|\r\n|\n\r)", "");
+		this.precondition = this.precondition.replaceAll("&#39;", "'");
+		this.precondition = this.precondition.replaceAll("&nbsp;", " ");
+	}
+}
+
+class TestCaseStep {
+	public TestCaseStep() {
+	}
+
+	private ArrayList<String> action = new ArrayList<String>();
+	private ArrayList<String> expected_result = new ArrayList<String>();
+
+	public void setStep(String action, String expected_result) {
+		this.action.add(action);
+		this.expected_result.add(expected_result);
+	}
+
+	public String getAction(int index) {
+		return this.action.get(index);
+	}
+
+	public int getActionSize() {
+		return this.action.size();
+	}
+
+	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. action의 HTML tag를 없애는 과정
+	public void modifyAction(int index) {
+		this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
+		this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
+		this.action.set(index, this.action.get(index).replaceAll("<br />", ""));
+		this.action.set(index, this.action.get(index).replaceAll("&lt;", "<"));
+		this.action.set(index, this.action.get(index).replaceAll("&gt;", ">"));
+		this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
+		this.action.set(index, this.action.get(index).replaceAll("&nbsp;", " "));
+	}
+}
+
 class TestCase {
 	private int id;
 	private String subject, precondition;
@@ -148,7 +301,7 @@ class TestCase {
 		this.precondition = precondition;
 	}
 
-	// Step = action 과 동일한 의미
+	// Step = action + expected_result
 	public void setStep(String action, String expected_result) {
 		this.action.add(action);
 		this.expected_result.add(expected_result);
@@ -197,9 +350,10 @@ class TestCase {
 		this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
 		this.action.set(index, this.action.get(index).replaceAll("&nbsp;", " "));
 	}
+
 	// testlink에서 바로 가져올 경우 HTML tag가 달린 상태로 쿼리가 받아짐. action의 HTML tag를 없애는 과정
 	public void modifyActions() {
-		for(int i=0; i<this.action.size(); i++) {
+		for (int i = 0; i < this.action.size(); i++) {
 			this.action.set(i, this.action.get(i).replaceAll("<p>", ""));
 			this.action.set(i, this.action.get(i).replaceAll("</p>", ""));
 			this.action.set(i, this.action.get(i).replaceAll("<br />", ""));
@@ -211,24 +365,28 @@ class TestCase {
 	}
 }
 
-class DBConntion {
-	private String driver, url, user, pwd;
+class DBConnection {
+	private String[] driver = new String[3];
+	private String[] url = new String[3];
+	private String[] user = new String[3];
+	private String[] pwd = new String[3];
 
-	// DB에 접속하기 위한 정보(driver, url, user, passwd)를 받는다
-	public void setDbInfo(String driver, String url, String user, String pwd) {
-		this.driver = driver;
-		this.url = url;
-		this.user = user;
-		this.pwd = pwd;
+	// DB에 접속하기 위한 정보(driver, url, user, passwd)를 받아 정보를 세팅
+	public void setDbInfo(int index, String driver, String url, String user, String pwd) {
+		this.driver[index] = driver;
+		this.url[index] = url;
+		this.user[index] = user;
+		this.pwd[index] = pwd;
 	}
 
 	// DB연결상태 출력
-	public Connection getConnection() {
+	public Connection getConnection(int index) {
 		Connection conn = null;
 		try {
-			Class.forName(this.driver);
-			conn = DriverManager.getConnection(this.url, this.user, this.pwd);
-			System.out.println("DB 연결");
+			Class.forName(this.driver[index]);
+			conn = DriverManager.getConnection(this.url[index], this.user[index], this.pwd[index]);
+			conn.setAutoCommit(false); // 자동 커밋 해제
+			System.out.println("DB 연결, autoCommit : " + conn.getAutoCommit());
 		} catch (ClassNotFoundException cnfe) {
 			System.out.println("DB 드라이버 로딩 실패 :" + cnfe.toString());
 		} catch (SQLException sqle) {
