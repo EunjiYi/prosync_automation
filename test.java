@@ -55,7 +55,7 @@ public class test {
 				}
 				closeConnection(conn);
 			}
-			//runactio라고 keyword 입력시 해당 구문 수행
+			//runaction이라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[0].equals("runaction")) {
 				conn = dbinfo.getConnection(0);
 				//loop를 전부 for each 형태로 작성
