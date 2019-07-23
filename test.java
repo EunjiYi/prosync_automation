@@ -17,6 +17,7 @@ public class test {
 		ArrayList<TestCaseStep> tcStep = new ArrayList<TestCaseStep>();
 
 		Connection conn = null;
+		Connection connTar = null;
 		ResultSet rs = null;
 
 		try {
@@ -47,18 +48,21 @@ public class test {
 			tr.addPrecondition(tcPre, rs);
 			closeConnection(conn);
 
-			//runpre라고 keyword 입력시 해당 구문 수행
+			// runpre라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[0].equals("runpre")) {
 				conn = dbinfo.getConnection(1);
+				connTar = dbinfo.getConnection(2);
 				for (TestCasePrecondition i : tcPre) {
 					sj.executePreQry(conn, i.getPrecondition());
+					sj.executePreQry(connTar, i.getPrecondition());
 				}
 				closeConnection(conn);
+				closeConnection(connTar);
 			}
-			//runaction이라고 keyword 입력시 해당 구문 수행
+			// runaction이라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[0].equals("runaction")) {
 				conn = dbinfo.getConnection(0);
-				//loop를 전부 for each 형태로 작성
+				// loop를 전부 for each 형태로 작성
 				// tcPre에서 id를 추출하여 id에 해당하는 action 수행
 				for (TestCasePrecondition i : tcPre) {
 					rs = sj.selectTCstep(conn, i.getId());
@@ -66,10 +70,34 @@ public class test {
 				}
 				closeConnection(conn);
 
+				ArrayList<String> syncTable = new ArrayList<String>();
+
 				conn = dbinfo.getConnection(1);
 				for (TestCaseStep i : tcStep) {
 					for (String action : i.getAction()) {
-						sj.executeActionQry(conn, action);
+						// sj.executeActionQry(conn, action);
+
+						// sync table parsing
+						String tmp1 = null;
+
+						if (!action.contains("COMMIT;")) {
+							tmp1 = action.substring(action.indexOf("TBL"));
+							tmp1 = tmp1.split(" ")[0];
+							tmp1 = tmp1.split("\\(")[0];
+							tmp1 = tmp1.split("\\,")[0];
+							tmp1 = tmp1.split(";")[0];
+
+							if (!syncTable.contains(tmp1)) {
+								syncTable.add(tmp1);
+							}
+
+						} else {
+							// check logic
+							for (String tbl : syncTable) {
+								System.out.println("sync : " + tbl);
+							}
+							syncTable.clear();
+						}
 					}
 				}
 				closeConnection(conn);
@@ -97,7 +125,8 @@ public class test {
 //actions = testlink에서 step actions
 class TestCaseRegsiter {
 	private ResultSet rs = null;
-	//testlink에서 precondition을 가져온다.
+
+	// testlink에서 precondition을 가져온다.
 	public ArrayList<TestCasePrecondition> addPrecondition(ArrayList<TestCasePrecondition> tcPre, ResultSet rs)
 			throws SQLException {
 		this.rs = rs;
@@ -109,7 +138,8 @@ class TestCaseRegsiter {
 		}
 		return tcPre;
 	}
-	//testlink에서 step을 가져온다.
+
+	// testlink에서 step을 가져온다.
 	public ArrayList<TestCaseStep> addStep(ArrayList<TestCaseStep> tcStep, ResultSet rs) throws SQLException {
 		tcStep.add(new TestCaseStep());
 		while (rs.next()) {
@@ -120,13 +150,12 @@ class TestCaseRegsiter {
 	}
 }
 
-
 //자동화를 위해 수행하는 sql문을 모아놓은 class
 class SqlJob {
 	private ResultSet rs, rs1 = null;
 
 	public ResultSet selectTCversion(Connection conn) throws SQLException {
-		//sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
+		// sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
 		String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b"
 				+ " WHERE parent_id in (417990) and b.id=a.id+1";
 		this.rs = conn.createStatement().executeQuery(sql);
@@ -134,9 +163,9 @@ class SqlJob {
 	}
 
 	public ResultSet selectTCstep(Connection conn, int id) throws SQLException {
-		//sql : 해당 디렉토리 속 '테스트케이스들의 id'를 조회하는 쿼리
+		// sql : 해당 디렉토리 속 '테스트케이스들의 id'를 조회하는 쿼리
 		String sql = "SELECT id FROM bitnami_testlink.nodes_hierarchy WHERE parent_id=" + id;
-		//sql1 : 해당 테스트케이스의 '액션들'을 조회하는 쿼리
+		// sql1 : 해당 테스트케이스의 '액션들'을 조회하는 쿼리
 		String sql1 = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
 		this.rs = conn.createStatement().executeQuery(sql);
 		if (this.rs != null && this.rs.isBeforeFirst()) {
@@ -149,13 +178,15 @@ class SqlJob {
 		}
 		return this.rs1;
 	}
-	//db에 접속하여 precondion을 수행한다.
+
+	// db에 접속하여 precondion을 수행한다.
 	public void executePreQry(Connection conn, String sql) throws SQLException {
 		String[] sqlSplit = sql.split(";");
 		for (int n = 0; n < sqlSplit.length; n++) {
 			conn.createStatement().execute(sqlSplit[n]);
 		}
 	}
+
 	// db 에 접속하여 action을 수행한다.
 	public void executeActionQry(Connection conn, String sql) {
 		try {
@@ -165,6 +196,7 @@ class SqlJob {
 		}
 	}
 }
+
 //precondition 가져와서 정제
 class TestCasePrecondition {
 	private int id;
@@ -194,6 +226,7 @@ class TestCasePrecondition {
 		this.precondition = this.precondition.replaceAll("&nbsp;", " ");
 	}
 }
+
 //step 가져와서 정제
 class TestCaseStep {
 	public TestCaseStep() {
