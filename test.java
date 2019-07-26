@@ -3,12 +3,20 @@ import java.sql.*;
 import java.util.ArrayList;
 
 public class test {
+	public static String CommitUnit;
+	static String ValidationtUnit;
 
 	public static void main(String[] args) throws ClassNotFoundException, InterruptedException {
 		// DatabaseLoader
 		//// SRC/TAR DB connection();
 		//// SRC DB runSQL(); - getAction
 		//// SRC/TAR DB check(); - verify
+
+		// 단위 순 : test step -> test case -> test suite
+		// check단위는 commit단위보다 작을 수 없다. ex) commit=case,check=step 이면 안된다.(커밋하지 않았는데,
+		// 정합성을 체크함)
+		CommitUnit = "step";
+		ValidationtUnit = "step";
 
 		DBConnection dbinfo = new DBConnection();
 		SqlJob sj = new SqlJob();
@@ -37,11 +45,7 @@ public class test {
 					"tibero", "tmax");
 			dbinfo.setDbInfo(2, "com.tmax.tibero.jdbc.TbDriver", "jdbc:tibero:thin:@192.168.17.104:48629:tbsync2",
 					"tibero", "tmax");
-			// dbinfo.setDbInfo(3, "oracle.jdbc.driver.OracleDriver",
-			// "jdbc:oracle:thin:@192.168.17.104:1521:orcl", "tibero", "tmax");
 
-			// conn.commit(); // 커밋 하기
-			// conn.rollback(); // 롤백 하기
 			// conn 변수에 값 대입되는 시점에 DB에 접속함
 			conn = dbinfo.getConnection(0);
 			rs = sj.selectTCversion(conn);
@@ -71,21 +75,38 @@ public class test {
 				closeConnection(conn);
 
 				ArrayList<String> syncTable = new ArrayList<String>();
+				Validation vd = new Validation();
+				int xid = 0;
 
 				conn = dbinfo.getConnection(1);
 				for (TestCaseStep i : tcStep) {
 					for (String action : i.getAction()) {
-						// sj.executeActionQry(conn, action);
 
 						// sync table parsing
 						String tmp1 = null;
 
 						if (!action.contains("COMMIT;")) {
+							sj.executeActionQry(conn, action);
+							System.out.print("SQL : " + action);
 							tmp1 = action.substring(action.indexOf("TBL"));
 							tmp1 = tmp1.split(" ")[0];
 							tmp1 = tmp1.split("\\(")[0];
 							tmp1 = tmp1.split("\\,")[0];
 							tmp1 = tmp1.split(";")[0];
+
+							rs = conn.createStatement()
+									.executeQuery("select dbms_transaction.local_transaction_id as tid from dual;");
+
+							while (rs.next()) { // 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을
+								String str = rs.getString("tid");
+
+								if (str != null && !str.isEmpty()) {
+									xid = Integer.parseInt(str.split("\\.")[0]) * 65536
+											+ Integer.parseInt(str.split("\\.")[1]);
+									System.out.println(" XID : " + xid);
+									Thread.sleep(1000);
+								}
+							}
 
 							if (!syncTable.contains(tmp1)) {
 								syncTable.add(tmp1);
@@ -93,17 +114,45 @@ public class test {
 
 						} else {
 							// check logic
+							vd.executeCommit(conn, CommitUnit, "step");
+							connTar = dbinfo.getConnection(2);
+
+							boolean flag = true;
+							while (flag) {
+								rs = connTar
+										.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)
+										.executeQuery("SELECT * FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid);
+								System.out.println("SELECT * FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid);
+								while (rs.next()) {
+									if (rs.getString("TSN") != null && !rs.getString("TSN").isEmpty()) {
+										System.out.println("TSN : " + rs.getString("TSN"));
+										flag = false;
+									}
+								}
+								Thread.sleep(5000);
+							}
+							;
+							closeConnection(connTar);
+
+							// class안에 isCheck()
+
+							// sj.executeActionQry(conn, action);
 							for (String tbl : syncTable) {
-								System.out.println("sync : " + tbl);
+								// System.out.println("sync : " + tbl);
 							}
 							syncTable.clear();
+
 						}
 					}
+					vd.executeCommit(conn, CommitUnit, "case");
 				}
+				vd.executeCommit(conn, CommitUnit, "suite");
 				closeConnection(conn);
 			}
 
-		} catch (SQLException e) {
+		} catch (
+
+		SQLException e) {
 			e.printStackTrace();
 		} finally {
 			closeConnection(conn);
@@ -116,6 +165,23 @@ public class test {
 				conn.close();
 			System.out.println("DB 연결 해제");
 		} catch (Exception e) {
+		}
+	}
+}
+
+class Validation {
+	// current tsn 조회
+	// lct 테이블에 동기화 되었는지 여부 확인
+	// src/tar 정합성 비교
+
+	public void runValidation() {
+		System.out.println("a");
+	}
+
+	public void executeCommit(Connection conn, String CommitUnit, String unit) throws SQLException {
+		if (CommitUnit.equals(unit)) {
+			System.out.println("COMMIT;");
+			conn.commit();
 		}
 	}
 }
@@ -157,7 +223,7 @@ class SqlJob {
 	public ResultSet selectTCversion(Connection conn) throws SQLException {
 		// sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
 		String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b"
-				+ " WHERE parent_id in (417990) and b.id=a.id+1";
+				+ " WHERE parent_id in (420506) and b.id=a.id+1";
 		this.rs = conn.createStatement().executeQuery(sql);
 		return this.rs;
 	}
@@ -193,6 +259,14 @@ class SqlJob {
 			conn.createStatement().execute(sql);
 		} catch (SQLException e) {
 			System.out.println(e.getErrorCode());
+			e.getStackTrace();
+		}
+	}
+
+	public void executeCommit(Connection conn, String CommitUnit, String unit) throws SQLException {
+		if (CommitUnit.equals(unit)) {
+			System.out.println("COMMIT;");
+			conn.commit();
 		}
 	}
 }
@@ -234,6 +308,7 @@ class TestCaseStep {
 
 	private ArrayList<String> action = new ArrayList<String>();
 	private ArrayList<String> expected_result = new ArrayList<String>();
+	private ArrayList<String> checkFlag = new ArrayList<String>();
 
 	public void setStep(String action, String expected_result) {
 		this.action.add(action);
@@ -253,6 +328,7 @@ class TestCaseStep {
 		this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
 		this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
 		this.action.set(index, this.action.get(index).replaceAll("<br />", ""));
+		this.action.set(index, this.action.get(index).replaceAll("(\r|\n|\r\n|\n\r)", ""));
 		this.action.set(index, this.action.get(index).replaceAll("&lt;", "<"));
 		this.action.set(index, this.action.get(index).replaceAll("&gt;", ">"));
 		this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
