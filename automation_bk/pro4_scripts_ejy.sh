@@ -16,7 +16,7 @@ work_dir_set () {
 }
 
 fn_init() {
-#echo "동일 폴더 삭제 : ${tibero_sync_user}, ${oracle_sync_user}"
+#echo "동일 폴더 삭제 : ${sync_user}"
     rm -rf $HOME/prosync4_${ims}
     rm -rf $HOME/prosync4
 
@@ -24,17 +24,58 @@ fn_init() {
     echo "tar -zxvf $HOME/$binary"
     tar -zxvf $HOME/$binary
     #gzip -dc $binary | tar -xvf - > /dev/null 2>&1
-    mv prosync4 $HOME/prosync4_$ims
+    mv prosync4 $HOME/prosync4_{$ims}
 }
 
 fn_sync_user_create () {
 echo "a"
+     #prosync4_o2t 일 때 수행
+     if [ ${top_id} -eq 0 ];then
+              echo "source ORACLE ${oracle_sync_user} user create"
+              sqlplus sys/oracle@${SRC_DB_NAME[1]} as sysdba << EOF > /dev/null 2>&1
+              create user ${oracle_sync_user} identified by tibero;
+              grant dba to ${oracle_sync_user};
+          EOF
+              echo "target TIBERO ${tibero_sync_user} / ${oracle_sync_user} user create "
+              tbsql sys/tibero@${TAR_DB_NAME[0]} << EOF > /dev/null 2>&1
+              create user ${tibero_sync_user} identified by tibero;
+              create user ${oracle_sync_user} identified by tibero;
+              grant dba to ${tibero_sync_user};
+              grant dba to ${oracle_sync_user};
+          EOF 
+     fi   
+     
+     #prosync4_t2t 일 때 수행
+     if [ ${top_id} -eq 1 ];then
+              echo "source TIBERO ${tibero_sync_user} user create "
+              tbsql sys/tibero@${SRC_DB_NAME[0]} << EOF > /dev/null 2>&1
+              create user ${tibero_sync_user} identified by tibero;
+              grant dba to ${tibero_sync_user};
+          EOF
+   
+              echo "target TIBERO ${tibero_sync_user} / ${oracle_sync_user} user create "
+              tbsql sys/tibero@${TAR_DB_NAME[0]} << EOF > /dev/null 2>&1
+              create user ${tibero_sync_user} identified by tibero;
+              create user ${oracle_sync_user} identified by tibero;
+              grant dba to ${tibero_sync_user};
+              grant dba to ${oracle_sync_user};
+          EOF
+     fi   
+#타겟 오라클은 일단 주석처리       
+#    echo "target ORACLE ${tibero_sync_user} / ${oracle_sync_user} user create"
+#    sqlplus sys/oracle@${TAR_DB_NAME[1]} as sysdba << EOF > /dev/null 2>&1
+#    create user ${tibero_sync_user} identified by tibero;
+#    create user ${oracle_sync_user} identified by tibero;
+#    grant dba to ${tibero_sync_user};
+#    grant dba to ${oracle_sync_user};
+#EOF
+}
 }
 
 fn_config_set() {
-	work_dir_set $HOME/prosync4_$ims/install
+	work_dir_set $HOME/prosync4_{$ims}/install
 	
-	source $HOME/prosync4_$ims/prs_env `pwd`
+	source $HOME/prosync4_{$im}s/prs_env `pwd`
 	cd $HOME/prosync4_$ims/install/
 	cp templates/* ./
 	rm -f prs_obj.list.template
