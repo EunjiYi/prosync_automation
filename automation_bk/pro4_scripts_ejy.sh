@@ -1,61 +1,59 @@
 #!/bin/bash
 
-# ÌÖåÏä§Ìä∏ ÏßÑÌñâÌï† ÌîÑÎ°úÏã±ÌÅ¨ ÎîîÎ†âÌÜ†Î¶¨ ÏÉùÏÑ±
-binary=`ls -rt | grep  prosync4- | tail -1`
-rev=`ls $binary | cut -d '-' -f 4`
+# ≈◊Ω∫∆Æ ¡¯«‡«“ «¡∑ŒΩÃ≈© µ∑∫≈‰∏Æ ª˝º∫
+binary=`ls -rt $HOME | grep  prosync4- | tail -1`
+echo "$binary"
 date=`date +%Y%m%d`
 
-#ims=Îì±Î°ùÌïúimsÎ≤àÌò∏
-tibero_sync_user=TIBERO_$ims
-oracle_sync_user=ORACLE_$ims
+#ims=µÓ∑œ«—imsπ¯»£
+ims=$1
+sync_user=SYNC$1
 
-#t2tÏù∏ÏßÄ o2tÏù∏ÏßÄ
-top_id=$top_id
-
-#src_type=ÏÜåÏä§ tibero Ïù¥Î©¥ 0, ÏÜåÏä§ oracle Ïù¥Î©¥ 1
-src_type=$src_type
+echo "$sync_user"
 
 work_dir_set () {
     wdir=$1
 }
 
 fn_init() {
-#echo "ÎèôÏùº Ìè¥Îçî ÏÇ≠Ï†ú : ${tibero_sync_user}, ${oracle_sync_user}"
-    rm -rf $HOME/prosync4_$ims
+#echo "µø¿œ ∆˙¥ı ªË¡¶ : ${tibero_sync_user}, ${oracle_sync_user}"
+    rm -rf $HOME/prosync4_${ims}
     rm -rf $HOME/prosync4
 
     echo "$binary Uncompress." 
+    echo "tar -zxvf $HOME/$binary"
     tar -zxvf $HOME/$binary
     #gzip -dc $binary | tar -xvf - > /dev/null 2>&1
-    mv $HOME/prosync4 $HOME/prosync4_$ims
-	
-	sed -i "s/tibero_sync_user/${tibero_sync_user}/g" $HOME/templates/prs.cfg
-	sed -i "s/oracle_sync_user/${oracle_sync_user}/g" $HOME/templates/prs.cfg
+    mv prosync4 $HOME/prosync4_$ims
+}
+
+fn_sync_user_create () {
+echo "a"
 }
 
 fn_config_set() {
+	work_dir_set $HOME/prosync4_$ims/install
 	
-	work_dir_set $PWD/prosync4_$ims/install
-	
-	. $HOME/prosync4_$ims/prs_env `pwd`
+	source $HOME/prosync4_$ims/prs_env `pwd`
 	cd $HOME/prosync4_$ims/install/
 	cp templates/* ./
 	rm -f prs_obj.list.template
 	mv prs_install.cfg.template prs_install.cfg
 	mv prs_obj_group1.list.template prs_obj_group1.list
 	
-	#vi prs_obj_group1.list Ìé∏Ïßë
+	#vi prs_obj_group1.list ∆Ì¡˝
 	
 	
-	#prs_install.cfg ÏàòÏ†ï - Í≥µÌÜµ: ÌÉÄÍ≤ü tibero ÏÑ§Ï†ï
+	#prs_install.cfg ºˆ¡§ - ∞¯≈Î: ≈∏∞Ÿ tibero º≥¡§
 				
-		sed -i "s/TAR_DB_NAME[0]=/TAR_DB_NAME[0]=tibero182/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/TAR_INSTALL_USER[0]=/TAR_INSTALL_USER[0]=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/TAR_INSTALL_PWD[0]=/TAR_INSTALL_PWD[0]=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
+sed -i "s/TAR_DB_NAME[0]=/TAR_DB_NAME[0]=${TAR_DB_NAME[0]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+echo "d -i s/TAR_DB_NAME[0]=/TAR_DB_NAME[0]=${TAR_DB_NAME[0]}/g $HOME/prosync4_$ims/install/prs_install.cfg"
+sed -i "s/TAR_INSTALL_USER[0]=/TAR_INSTALL_USER[0]=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
+sed -i "s/TAR_INSTALL_PWD[0]=/TAR_INSTALL_PWD[0]=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
 			
 	
-	#prs_install.cfg ÏàòÏ†ï - ÏÜåÏä§ tibero Ïùº Îïå
-    if [ "${$src_type}" == "tibero" ];then
+	#prs_install.cfg ºˆ¡§ - º“Ω∫ tibero ¿œ ∂ß
+    if [ "${SRC_DB_TYPE}" == "tibero" ];then
     
     	sed -i "s/TOP_ID=/TOP_ID=${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
     	sed -i "s/PRS_USER=prosync/PRS_USER=prosync_${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
@@ -71,7 +69,7 @@ fn_config_set() {
 	fi
 	
 	
-	#prs_install.cfg ÏàòÏ†ï - ÏÜåÏä§ oracle Ïùº Îïå
+	#prs_install.cfg ºˆ¡§ - º“Ω∫ oracle ¿œ ∂ß
 	if [ "${src_type}" == "oracle" ];then
 		
 		sed -i "s/TOP_ID=/TOP_ID=${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
@@ -89,6 +87,7 @@ fn_config_set() {
 		sed -i "s/SRC_INSTALL_PWD=/SRC_INSTALL_PWD=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg	
 		
 	fi
+}
 
 fn_install () {
     source $HOME/prosync4_$ims/prs_env $HOME/prosync4_$ims
@@ -125,46 +124,9 @@ EOF
 
 ######################## main ########################
 fn_init
-source templates/prs.cfg
+source prs_ejy.cfg
+fn_sync_user_create
 fn_config_set
-java test runpre
+#java test runpre
 fn_install
-java test runaction
-exit
-
-#-----Ïó¨Í∏∞ Î∞ëÏúºÎ°ú ÏàòÏ†ïx
-fn_admin start ${tibero_sync_user} &
-sleep 1
-fn_admin status ${tibero_sync_user} &
-sleep 1
-
-#all case test
-#cd $HOME/dml_case
-#sh dml_case.sh 7 TIBERO 
-echo "TIBERO regression test"
-java test runaction
-
-fn_admin stop ${tibero_sync_user} &
-sleep 1
-
-fn_admin start ${oracle_sync_user} &
-sleep 1
-fn_admin status ${oracle_sync_user} &
-sleep 1
-
-#all case test
-cd $HOME/dml_case
-echo "ORACLE regression test"
-sh dml_case.sh 7 ORACLE 
-
-fn_admin stop ${oracle_sync_user} &
-sleep 5
-
-echo "Test finished"
-
-fn_admin stop man &
-sleep 2
-
-cd $HOME
-tar -czvf ${ims}_log.tgz prosync4_${ims}/var
-exit
+#java test runaction
