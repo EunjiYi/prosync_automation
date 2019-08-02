@@ -76,77 +76,134 @@ public class test {
 
 				ArrayList<String> syncTable = new ArrayList<String>();
 				Validation vd = new Validation();
-				int xid = 0;
+				int xid = 0, tsn = 0;
 
 				conn = dbinfo.getConnection(1);
+				boolean suiteValidation = true;
 				for (TestCaseStep i : tcStep) {
+					boolean caseValidation = true;
 					for (String action : i.getAction()) {
-
 						// sync table parsing
 						String tmp1 = null;
-
-						if (!action.contains("COMMIT;")) {
+						if (action.contains("TBL")) {
+							System.out.println("SQL : " + action);
 							sj.executeActionQry(conn, action);
-							System.out.print("SQL : " + action);
+							rs = conn.createStatement().executeQuery(
+									"select dbms_transaction.local_transaction_id as tid, decode(dbms_transaction.local_transaction_id,null,null,current_tsn) as tsn from v$database;\n"
+											+ "");
+
 							tmp1 = action.substring(action.indexOf("TBL"));
 							tmp1 = tmp1.split(" ")[0];
 							tmp1 = tmp1.split("\\(")[0];
 							tmp1 = tmp1.split("\\,")[0];
 							tmp1 = tmp1.split(";")[0];
 
-							rs = conn.createStatement()
-									.executeQuery("select dbms_transaction.local_transaction_id as tid from dual;");
-
 							while (rs.next()) { // 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을
 								String str = rs.getString("tid");
+								tsn = rs.getInt("tsn");
 
 								if (str != null && !str.isEmpty()) {
 									xid = Integer.parseInt(str.split("\\.")[0]) * 65536
 											+ Integer.parseInt(str.split("\\.")[1]);
-									System.out.println(" XID : " + xid);
-									Thread.sleep(1000);
+									System.out.println("XID : " + xid + ", TSN : " + tsn);
 								}
 							}
-
 							if (!syncTable.contains(tmp1)) {
 								syncTable.add(tmp1);
 							}
-
+						} else if (action.contains("ROLLBACK")) {
+							conn.rollback();
+							syncTable.clear();
 						} else {
 							// check logic
-							vd.executeCommit(conn, CommitUnit, "step");
+							boolean stepValidation = true;
+							// commit 수행
+							conn.commit();
 							connTar = dbinfo.getConnection(2);
-
 							boolean flag = true;
 							while (flag) {
 								rs = connTar
 										.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)
-										.executeQuery("SELECT * FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid);
-								System.out.println("SELECT * FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid);
+										.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
+												+ " AND tsn >= " + tsn);
+								System.out.println("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
+										+ " AND tsn >= " + tsn);
+								Thread.sleep(200);
 								while (rs.next()) {
 									if (rs.getString("TSN") != null && !rs.getString("TSN").isEmpty()) {
 										System.out.println("TSN : " + rs.getString("TSN"));
-										flag = false;
+										// 소스 /타겟 데이터 조회
+
+										System.out.println(syncTable.get(0) + "멈춤 확인용");
+										for (String tbl : syncTable) {
+											System.out.println("동기화 체크할 테이블 : " + tbl);
+											ResultSet rs1 = conn
+													.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
+															ResultSet.CONCUR_UPDATABLE)
+													.executeQuery("select * from " + tbl + " order by 1");
+											ResultSet rs2 = connTar
+													.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
+															ResultSet.CONCUR_UPDATABLE)
+													.executeQuery("select * from " + tbl + " order by 1");
+
+											int srcRowCount = 0, tarRowCount = 0;
+											rs1.last();
+											rs2.last();
+											srcRowCount = rs1.getRow();
+											tarRowCount = rs2.getRow();
+											rs1.beforeFirst();
+											rs2.beforeFirst();
+
+											System.out.printf(tbl + " srcRowCount : " + srcRowCount + ", tarRowCount : "
+													+ tarRowCount);
+											if (srcRowCount == tarRowCount) {
+												System.out.println(", ROW수 같음");
+
+												ResultSetMetaData metaInfo1 = rs1.getMetaData();
+												boolean colValidation = true;
+												while (rs1.next() && rs2.next()) {
+
+													for (int l = 1; l <= metaInfo1.getColumnCount(); l++) {
+														if (rs1.getString(l) == null
+																|| rs1.getString(l).equals("") == true) {
+															// 컬럼의 값이 NULL 일 때 아무런 작업 안함
+															continue;
+														} else {
+															// 컬럼의 값이 not NULL, 소스 타겟 데이터 비교
+															if (rs1.getString(l).equals(rs2.getString(l))) {
+																// 같으면 true, 다르면 false, 결과에 AND 연산자, 한번이라도 실패면 실패(false)
+																colValidation &= true;
+															} else {
+																colValidation &= false;
+																System.out.println(metaInfo1.getColumnName(l)
+																		+ "컬럼 데이터 불일치 SRC : " + rs1.getString(l)
+																		+ ", TAR : " + rs2.getString(l));
+																break;
+															}
+														}
+													}
+												}
+												stepValidation = colValidation;
+												flag = false;
+											}
+
+											else {
+												System.out.println(", ROW수 다름");
+												stepValidation = false;
+												flag = false;
+												System.exit(0);
+											}
+										}
+										syncTable.clear();
+										stepValidation &= stepValidation;
+										System.out.println("stepValidation : " + stepValidation);
 									}
 								}
-								Thread.sleep(5000);
 							}
-							;
 							closeConnection(connTar);
-
-							// class안에 isCheck()
-
-							// sj.executeActionQry(conn, action);
-							for (String tbl : syncTable) {
-								// System.out.println("sync : " + tbl);
-							}
-							syncTable.clear();
-
 						}
 					}
-					vd.executeCommit(conn, CommitUnit, "case");
 				}
-				vd.executeCommit(conn, CommitUnit, "suite");
 				closeConnection(conn);
 			}
 
@@ -163,7 +220,6 @@ public class test {
 		try {
 			if (conn != null)
 				conn.close();
-			System.out.println("DB 연결 해제");
 		} catch (Exception e) {
 		}
 	}
@@ -176,13 +232,6 @@ class Validation {
 
 	public void runValidation() {
 		System.out.println("a");
-	}
-
-	public void executeCommit(Connection conn, String CommitUnit, String unit) throws SQLException {
-		if (CommitUnit.equals(unit)) {
-			System.out.println("COMMIT;");
-			conn.commit();
-		}
 	}
 }
 
@@ -223,7 +272,7 @@ class SqlJob {
 	public ResultSet selectTCversion(Connection conn) throws SQLException {
 		// sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
 		String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b"
-				+ " WHERE parent_id in (420506) and b.id=a.id+1";
+				+ " WHERE parent_id in (417990) and b.id=a.id+1";
 		this.rs = conn.createStatement().executeQuery(sql);
 		return this.rs;
 	}
@@ -358,7 +407,6 @@ class DBConnection {
 			Class.forName(this.driver[index]);
 			conn = DriverManager.getConnection(this.url[index], this.user[index], this.pwd[index]);
 			conn.setAutoCommit(false); // 자동 커밋 해제
-			System.out.println("DB 연결, autoCommit : " + conn.getAutoCommit());
 		} catch (ClassNotFoundException cnfe) {
 			System.out.println("DB 드라이버 로딩 실패 :" + cnfe.toString());
 		} catch (SQLException sqle) {
