@@ -3,12 +3,20 @@ import java.sql.*;
 import java.util.ArrayList;
 
 public class test {
+	public static String CommitUnit;
+	static String ValidationtUnit;
 
 	public static void main(String[] args) throws ClassNotFoundException, InterruptedException {
 		// DatabaseLoader
 		//// SRC/TAR DB connection();
 		//// SRC DB runSQL(); - getAction
 		//// SRC/TAR DB check(); - verify
+
+		// 단위 순 : test step -> test case -> test suite
+		// check단위는 commit단위보다 작을 수 없다. ex) commit=case,check=step 이면 안된다.(커밋하지 않았는데,
+		// 정합성을 체크함)
+		CommitUnit = "step";
+		ValidationtUnit = "step";
 
 		DBConnection dbinfo = new DBConnection();
 		SqlJob sj = new SqlJob();
@@ -17,6 +25,7 @@ public class test {
 		ArrayList<TestCaseStep> tcStep = new ArrayList<TestCaseStep>();
 
 		Connection conn = null;
+		Connection connTar = null;
 		ResultSet rs = null;
 
 		try {
@@ -36,29 +45,28 @@ public class test {
 					"tibero", "tmax");
 			dbinfo.setDbInfo(2, "com.tmax.tibero.jdbc.TbDriver", "jdbc:tibero:thin:@192.168.17.104:48629:tbsync2",
 					"tibero", "tmax");
-			// dbinfo.setDbInfo(3, "oracle.jdbc.driver.OracleDriver",
-			// "jdbc:oracle:thin:@192.168.17.104:1521:orcl", "tibero", "tmax");
 
-			// conn.commit(); // 커밋 하기
-			// conn.rollback(); // 롤백 하기
 			// conn 변수에 값 대입되는 시점에 DB에 접속함
 			conn = dbinfo.getConnection(0);
 			rs = sj.selectTCversion(conn);
 			tr.addPrecondition(tcPre, rs);
 			closeConnection(conn);
 
-			//runpre라고 keyword 입력시 해당 구문 수행
+			// runpre라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[0].equals("runpre")) {
 				conn = dbinfo.getConnection(1);
+				connTar = dbinfo.getConnection(2);
 				for (TestCasePrecondition i : tcPre) {
 					sj.executePreQry(conn, i.getPrecondition());
+					sj.executePreQry(connTar, i.getPrecondition());
 				}
 				closeConnection(conn);
+				closeConnection(connTar);
 			}
-			//runaction이라고 keyword 입력시 해당 구문 수행
+			// runaction이라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[0].equals("runaction")) {
 				conn = dbinfo.getConnection(0);
-				//loop를 전부 for each 형태로 작성
+				// loop를 전부 for each 형태로 작성
 				// tcPre에서 id를 추출하여 id에 해당하는 action 수행
 				for (TestCasePrecondition i : tcPre) {
 					rs = sj.selectTCstep(conn, i.getId());
@@ -66,16 +74,142 @@ public class test {
 				}
 				closeConnection(conn);
 
+				ArrayList<String> syncTable = new ArrayList<String>();
+				Validation vd = new Validation();
+				int xid = 0, tsn = 0;
+
 				conn = dbinfo.getConnection(1);
+				boolean suiteValidation = true;
 				for (TestCaseStep i : tcStep) {
+					boolean caseValidation = true;
 					for (String action : i.getAction()) {
-						sj.executeActionQry(conn, action);
+						// sync table parsing
+						String tmp1 = null;
+						if (action.contains("TBL")) {
+							System.out.println("SQL : " + action);
+							sj.executeActionQry(conn, action);
+							rs = conn.createStatement().executeQuery(
+									"select dbms_transaction.local_transaction_id as tid, decode(dbms_transaction.local_transaction_id,null,null,current_tsn) as tsn from v$database;\n"
+											+ "");
+
+							tmp1 = action.substring(action.indexOf("TBL"));
+							tmp1 = tmp1.split(" ")[0];
+							tmp1 = tmp1.split("\\(")[0];
+							tmp1 = tmp1.split("\\,")[0];
+							tmp1 = tmp1.split(";")[0];
+
+							while (rs.next()) { // 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을
+								String str = rs.getString("tid");
+								tsn = rs.getInt("tsn");
+
+								if (str != null && !str.isEmpty()) {
+									xid = Integer.parseInt(str.split("\\.")[0]) * 65536
+											+ Integer.parseInt(str.split("\\.")[1]);
+									System.out.println("XID : " + xid + ", TSN : " + tsn);
+								}
+							}
+							if (!syncTable.contains(tmp1)) {
+								syncTable.add(tmp1);
+							}
+						} else if (action.contains("ROLLBACK")) {
+							conn.rollback();
+							syncTable.clear();
+						} else {
+							// check logic
+							boolean stepValidation = true;
+							// commit 수행
+							conn.commit();
+							connTar = dbinfo.getConnection(2);
+							boolean flag = true;
+							while (flag) {
+								rs = connTar
+										.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)
+										.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
+												+ " AND tsn >= " + tsn);
+								System.out.println("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
+										+ " AND tsn >= " + tsn);
+								Thread.sleep(200);
+								while (rs.next()) {
+									if (rs.getString("TSN") != null && !rs.getString("TSN").isEmpty()) {
+										System.out.println("TSN : " + rs.getString("TSN"));
+										// 소스 /타겟 데이터 조회
+
+										System.out.println(syncTable.get(0) + "멈춤 확인용");
+										for (String tbl : syncTable) {
+											System.out.println("동기화 체크할 테이블 : " + tbl);
+											ResultSet rs1 = conn
+													.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
+															ResultSet.CONCUR_UPDATABLE)
+													.executeQuery("select * from " + tbl + " order by 1");
+											ResultSet rs2 = connTar
+													.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
+															ResultSet.CONCUR_UPDATABLE)
+													.executeQuery("select * from " + tbl + " order by 1");
+
+											int srcRowCount = 0, tarRowCount = 0;
+											rs1.last();
+											rs2.last();
+											srcRowCount = rs1.getRow();
+											tarRowCount = rs2.getRow();
+											rs1.beforeFirst();
+											rs2.beforeFirst();
+
+											System.out.printf(tbl + " srcRowCount : " + srcRowCount + ", tarRowCount : "
+													+ tarRowCount);
+											if (srcRowCount == tarRowCount) {
+												System.out.println(", ROW수 같음");
+
+												ResultSetMetaData metaInfo1 = rs1.getMetaData();
+												boolean colValidation = true;
+												while (rs1.next() && rs2.next()) {
+
+													for (int l = 1; l <= metaInfo1.getColumnCount(); l++) {
+														if (rs1.getString(l) == null
+																|| rs1.getString(l).equals("") == true) {
+															// 컬럼의 값이 NULL 일 때 아무런 작업 안함
+															continue;
+														} else {
+															// 컬럼의 값이 not NULL, 소스 타겟 데이터 비교
+															if (rs1.getString(l).equals(rs2.getString(l))) {
+																// 같으면 true, 다르면 false, 결과에 AND 연산자, 한번이라도 실패면 실패(false)
+																colValidation &= true;
+															} else {
+																colValidation &= false;
+																System.out.println(metaInfo1.getColumnName(l)
+																		+ "컬럼 데이터 불일치 SRC : " + rs1.getString(l)
+																		+ ", TAR : " + rs2.getString(l));
+																break;
+															}
+														}
+													}
+												}
+												stepValidation = colValidation;
+												flag = false;
+											}
+
+											else {
+												System.out.println(", ROW수 다름");
+												stepValidation = false;
+												flag = false;
+												System.exit(0);
+											}
+										}
+										syncTable.clear();
+										stepValidation &= stepValidation;
+										System.out.println("stepValidation : " + stepValidation);
+									}
+								}
+							}
+							closeConnection(connTar);
+						}
 					}
 				}
 				closeConnection(conn);
 			}
 
-		} catch (SQLException e) {
+		} catch (
+
+		SQLException e) {
 			e.printStackTrace();
 		} finally {
 			closeConnection(conn);
@@ -86,9 +220,18 @@ public class test {
 		try {
 			if (conn != null)
 				conn.close();
-			System.out.println("DB 연결 해제");
 		} catch (Exception e) {
 		}
+	}
+}
+
+class Validation {
+	// current tsn 조회
+	// lct 테이블에 동기화 되었는지 여부 확인
+	// src/tar 정합성 비교
+
+	public void runValidation() {
+		System.out.println("a");
 	}
 }
 
@@ -97,7 +240,8 @@ public class test {
 //actions = testlink에서 step actions
 class TestCaseRegsiter {
 	private ResultSet rs = null;
-	//testlink에서 precondition을 가져온다.
+
+	// testlink에서 precondition을 가져온다.
 	public ArrayList<TestCasePrecondition> addPrecondition(ArrayList<TestCasePrecondition> tcPre, ResultSet rs)
 			throws SQLException {
 		this.rs = rs;
@@ -109,7 +253,8 @@ class TestCaseRegsiter {
 		}
 		return tcPre;
 	}
-	//testlink에서 step을 가져온다.
+
+	// testlink에서 step을 가져온다.
 	public ArrayList<TestCaseStep> addStep(ArrayList<TestCaseStep> tcStep, ResultSet rs) throws SQLException {
 		tcStep.add(new TestCaseStep());
 		while (rs.next()) {
@@ -120,13 +265,12 @@ class TestCaseRegsiter {
 	}
 }
 
-
 //자동화를 위해 수행하는 sql문을 모아놓은 class
 class SqlJob {
 	private ResultSet rs, rs1 = null;
 
 	public ResultSet selectTCversion(Connection conn) throws SQLException {
-		//sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
+		// sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
 		String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b"
 				+ " WHERE parent_id in (417990) and b.id=a.id+1";
 		this.rs = conn.createStatement().executeQuery(sql);
@@ -134,9 +278,9 @@ class SqlJob {
 	}
 
 	public ResultSet selectTCstep(Connection conn, int id) throws SQLException {
-		//sql : 해당 디렉토리 속 '테스트케이스들의 id'를 조회하는 쿼리
+		// sql : 해당 디렉토리 속 '테스트케이스들의 id'를 조회하는 쿼리
 		String sql = "SELECT id FROM bitnami_testlink.nodes_hierarchy WHERE parent_id=" + id;
-		//sql1 : 해당 테스트케이스의 '액션들'을 조회하는 쿼리
+		// sql1 : 해당 테스트케이스의 '액션들'을 조회하는 쿼리
 		String sql1 = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
 		this.rs = conn.createStatement().executeQuery(sql);
 		if (this.rs != null && this.rs.isBeforeFirst()) {
@@ -149,22 +293,33 @@ class SqlJob {
 		}
 		return this.rs1;
 	}
-	//db에 접속하여 precondion을 수행한다.
+
+	// db에 접속하여 precondion을 수행한다.
 	public void executePreQry(Connection conn, String sql) throws SQLException {
 		String[] sqlSplit = sql.split(";");
 		for (int n = 0; n < sqlSplit.length; n++) {
 			conn.createStatement().execute(sqlSplit[n]);
 		}
 	}
+
 	// db 에 접속하여 action을 수행한다.
 	public void executeActionQry(Connection conn, String sql) {
 		try {
 			conn.createStatement().execute(sql);
 		} catch (SQLException e) {
 			System.out.println(e.getErrorCode());
+			e.getStackTrace();
+		}
+	}
+
+	public void executeCommit(Connection conn, String CommitUnit, String unit) throws SQLException {
+		if (CommitUnit.equals(unit)) {
+			System.out.println("COMMIT;");
+			conn.commit();
 		}
 	}
 }
+
 //precondition 가져와서 정제
 class TestCasePrecondition {
 	private int id;
@@ -194,6 +349,7 @@ class TestCasePrecondition {
 		this.precondition = this.precondition.replaceAll("&nbsp;", " ");
 	}
 }
+
 //step 가져와서 정제
 class TestCaseStep {
 	public TestCaseStep() {
@@ -201,6 +357,7 @@ class TestCaseStep {
 
 	private ArrayList<String> action = new ArrayList<String>();
 	private ArrayList<String> expected_result = new ArrayList<String>();
+	private ArrayList<String> checkFlag = new ArrayList<String>();
 
 	public void setStep(String action, String expected_result) {
 		this.action.add(action);
@@ -220,6 +377,7 @@ class TestCaseStep {
 		this.action.set(index, this.action.get(index).replaceAll("<p>", ""));
 		this.action.set(index, this.action.get(index).replaceAll("</p>", ""));
 		this.action.set(index, this.action.get(index).replaceAll("<br />", ""));
+		this.action.set(index, this.action.get(index).replaceAll("(\r|\n|\r\n|\n\r)", ""));
 		this.action.set(index, this.action.get(index).replaceAll("&lt;", "<"));
 		this.action.set(index, this.action.get(index).replaceAll("&gt;", ">"));
 		this.action.set(index, this.action.get(index).replaceAll("&#39;", "'"));
@@ -249,7 +407,6 @@ class DBConnection {
 			Class.forName(this.driver[index]);
 			conn = DriverManager.getConnection(this.url[index], this.user[index], this.pwd[index]);
 			conn.setAutoCommit(false); // 자동 커밋 해제
-			System.out.println("DB 연결, autoCommit : " + conn.getAutoCommit());
 		} catch (ClassNotFoundException cnfe) {
 			System.out.println("DB 드라이버 로딩 실패 :" + cnfe.toString());
 		} catch (SQLException sqle) {
