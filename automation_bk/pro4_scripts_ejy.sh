@@ -137,7 +137,6 @@ fn_install () {
 
     echo "previous process kill"
     kill -9 `ps -ef| grep prs_  | grep -v grep  | cut -d ' ' -f 3`
-
 }
 
 fn_admin () {
@@ -164,8 +163,6 @@ EOF
         ;;
     esac
 }
-
-
 
 ######################## main ########################
 fn_init
