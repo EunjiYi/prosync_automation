@@ -17,7 +17,7 @@ work_dir_set () {
 fn_init() {
     echo "remove old directory"
     rm -rf $HOME/prosync4_${ims}
-    rm -rf $HOME/prosync4
+    #rm -rf $HOME/prosync4
 
     echo "Binary Uncompress." 
     echo "Binary : $binary"
