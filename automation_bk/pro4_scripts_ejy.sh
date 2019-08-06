@@ -1,73 +1,62 @@
 #!/bin/bash
 
-# 테스트 진행할 프로싱크 디렉토리 생성
 binary=`ls -rt $HOME | grep  prosync4- | tail -1`
 echo "$binary"
 date=`date +%Y%m%d`
 
-#ims=등록한ims번호
 ims=$1
 sync_user=SYNC$1
-
 echo "$sync_user"
+
+src_type=$2
 
 work_dir_set () {
     wdir=$1
 }
 
 fn_init() {
-#echo "동일 폴더 삭제 : ${sync_user}"
+    echo "remove old directory"
     rm -rf $HOME/prosync4_${ims}
     rm -rf $HOME/prosync4
 
-    echo "$binary Uncompress." 
+    echo "Binary Uncompress." 
+    echo "Binary : $binary"
     echo "tar -zxvf $HOME/$binary"
     tar -zxvf $HOME/$binary
     #gzip -dc $binary | tar -xvf - > /dev/null 2>&1
     mv prosync4 $HOME/prosync4_${ims}
 }
 
-fn_sync_user_create() {
+fn_sync_user_create() {		
+        echo "target TIBERO ${sync_user} user create"
+        tbsql sys/tibero@${TAR_DB_NAME} << EOF > /dev/null 2>&1
+        create user ${sync_user} identified by tibero;
+        create user ${sync_user} identified by tibero;
+        grant dba to ${sync_user};
+        grant dba to ${sync_user};
+EOF
 
-echo  "SRC_DB_TYPE : $SRC_DB_TYPE"
-     #prosync4_o2t 일 때 수행
-if [ "$SRC_DB_TYPE" = "ORACLE" ]; then
-echo "oracle"
-              echo "source ORACLE ${sync_user} user create"
-              sqlplus sys/oracle@${SRC_DB_NAME} as sysdba << EOF > /dev/null 2>&1
+	echo "SRC_DB_TYPE : ${src_type}"
+	case "${src_type}" in
+	      TIBERO)
+              echo "source TIBERO ${sync_user} user create"
+              tbsql sys/tibero@${SRC_DB_NAME[0]} << EOF > /dev/null 2>&1
               create user ${sync_user} identified by tibero;
               grant dba to ${sync_user};
 EOF
-              echo "target TIBERO ${sync_user} user create "
-              tbsql sys/tibero@${TAR_DB_NAME[0]} << EOF > /dev/null 2>&1
+              ;;
+              ORACLE)
+              echo "source ORACLE ${sync_user} user create "
+	      sqlplus sys/oracle@${SRC_DB_NAME[1]} as sysdba << EOF > /dev/null 2>&1
               create user ${sync_user} identified by tibero;
-              create user ${sync_user} identified by tibero;
-              grant dba to ${sync_user};
-              grant dba to ${sync_user};
-EOF 
-     #prosync4_t2t 일 때 수행
-elif [ "$SRC_DB_TYPE" = "TIBERO" ]; then
-echo "tibero"
-              echo "source TIBERO ${sync_user} user create "
-              echo "tbsql sys/tibero@${SRC_DB_NAME} << EOF > /dev/null 2>&1"
-              tbsql sys/tibero@${SRC_DB_NAME} << EOF > /dev/null 2>&1
-              create user ${sync_user} identified by tibero;
-              grant dba to ${sync_user};
-EOF 
-              echo "target TIBERO ${sync_user} user create "
-              tbsql sys/tibero@${TAR_DB_NAME[0]} << EOF > /dev/null 2>&1
-              create user ${sync_user} identified by tibero;
-              create user ${sync_user} identified by tibero;
-              grant dba to ${sync_user};
               grant dba to ${sync_user};
 EOF
 
-else
-echo "end "
-fi
+	      ;;
+	esac	  
 }
 
-#타겟 오라클은 일단 주석처리       
+# target oracle    
 #    echo "target ORACLE ${sync_user} / ${sync_user} user create"
 #    sqlplus sys/oracle@${TAR_DB_NAME[1]} as sysdba << EOF > /dev/null 2>&1
 #    create user ${sync_user} identified by tibero;
@@ -79,59 +68,57 @@ fi
 fn_config_set() {
 	work_dir_set $HOME/prosync4_${ims}/install
 	
+	echo "config file setting"
 	source $HOME/prosync4_${ims}/prs_env `pwd`
 	cd $HOME/prosync4_${ims}/install/
 	cp templates/* ./
 	rm -f prs_obj.list.template
 	mv prs_install.cfg.template prs_install.cfg
 	mv prs_obj_group1.list.template prs_obj_group1.list
+	echo "cat prs_obj_group1.list"
+	cat prs_obj_group1.list
 	
-	#vi prs_obj_group1.list 편집
-	
-	
-	#prs_install.cfg 수정 - 공통: 타겟 tibero 설정
-				
-sed -i "s/TAR_DB_NAME[0]=/TAR_DB_NAME[0]=${TAR_DB_NAME[0]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
-echo "d -i s/TAR_DB_NAME[0]=/TAR_DB_NAME[0]=${TAR_DB_NAME[0]}/g $HOME/prosync4_$ims/install/prs_install.cfg"
-sed -i "s/TAR_INSTALL_USER[0]=/TAR_INSTALL_USER[0]=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
-sed -i "s/TAR_INSTALL_PWD[0]=/TAR_INSTALL_PWD[0]=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
+	echo "set prs_install.cfg (1) - target tibero"
+	sed -i "s/TAR_DB_NAME\[0\]=/TAR_DB_NAME\[0\]=${TAR_DB_NAME}/g" $HOME/prosync4_${ims}/install/prs_install.cfg
+	sed -i "s/TAR_INSTALL_USER\[0\]=/TAR_INSTALL_USER\[0\]=sys/g" $HOME/prosync4_${ims}/install/prs_install.cfg
+	sed -i "s/TAR_INSTALL_PWD\[0\]=/TAR_INSTALL_PWD\[0\]=tibero/g" $HOME/prosync4_${ims}/install/prs_install.cfg
 			
 	
-	#prs_install.cfg 수정 - 소스 tibero 일 때
-    if [ "${SRC_DB_TYPE}" == "tibero" ];then
-    
-    	sed -i "s/TOP_ID=/TOP_ID=${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
-    	sed -i "s/PRS_USER=prosync/PRS_USER=prosync_${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+	case "${src_type}" in
+		TIBERO)   	
+		echo "set prs_install.cfg (2) - source tibero"
+    		sed -i "s/TOP_ID=/TOP_ID=t2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
+    		sed -i "s/PRS_USER=prosync/PRS_USER=prosync_t2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/PRS_PWD=/PRS_PWD=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		
-		sed -i "s/RULE_DB_NAME=/RULE_DB_NAME=orcl182/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/RULE_INSTALL_USER=/RULE_INSTALL_USER=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/RULE_INSTALL_PWD=/RULE_INSTALL_PWD=oracle/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		
-		sed -i "s/SRC_DB_NAME=/SRC_DB_NAME=orcl/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/SRC_INSTALL_USER=/SRC_INSTALL_USER=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/SRC_INSTALL_PWD=/SRC_INSTALL_PWD=oracle/g" $HOME/prosync4_$ims/install/prs_install.cfg	
-	fi
-	
-	
-	#prs_install.cfg 수정 - 소스 oracle 일 때
-	if [ "${src_type}" == "oracle" ];then
-		
-		sed -i "s/TOP_ID=/TOP_ID=${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
-    	sed -i "s/PRS_USER=prosync/PRS_USER=prosync_${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/PRS_PWD=/PRS_PWD=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		
-		sed -i "s/RULE_DB_TYPE=TIBERO/RULE_DB_TYPE=ORACLE/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/RULE_DB_NAME=/RULE_DB_NAME=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/RULE_DB_TYPE=TIBERO/RULE_DB_TYPE=${SRC_DB_TYPE[0]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/RULE_DB_NAME=/RULE_DB_NAME=${SRC_DB_NAME[10}/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/RULE_INSTALL_USER=/RULE_INSTALL_USER=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/RULE_INSTALL_PWD=/RULE_INSTALL_PWD=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		
-		sed -i "s/SRC_DB_TYPE=TIBERO/SRC_DB_TYPE=ORACLE/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/SRC_DB_NAME=/SRC_DB_NAME=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/SRC_DB_NAME=TIBERO/SRC_DB_TYPE=${SRC_DB_TYPE[0]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/SRC_DB_NAME=/SRC_DB_NAME=${SRC_DB_NAME[0]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/SRC_INSTALL_USER=/SRC_INSTALL_USER=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/SRC_INSTALL_PWD=/SRC_INSTALL_PWD=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg	
+		;;
+
+		ORACLE)
+		echo "set prs_install.cfg (2) - source oracle"
+		sed -i "s/TOP_ID=/TOP_ID=o2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
+    		sed -i "s/PRS_USER=prosync/PRS_USER=prosync_o2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/PRS_PWD=/PRS_PWD=oracle/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		
-	fi
+		sed -i "s/RULE_DB_TYPE=TIBERO/RULE_DB_TYPE=${SRC_DB_TYPE[1]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/RULE_DB_NAME=/RULE_DB_NAME=${SRC_DB_NAME[1]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/RULE_INSTALL_USER=/RULE_INSTALL_USER=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/RULE_INSTALL_PWD=/RULE_INSTALL_PWD=oracle/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		
+		sed -i "s/SRC_DB_TYPE=TIBERO/SRC_DB_TYPE=${SRC_DB_TYPE[1]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/SRC_DB_NAME=/SRC_DB_NAME=${SRC_DB_NAME[1]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/SRC_INSTALL_USER=/SRC_INSTALL_USER=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/SRC_INSTALL_PWD=/SRC_INSTALL_PWD=oracle/g" $HOME/prosync4_$ims/install/prs_install.cfg	
+		;;
+	esac
 }
 
 fn_install () {
@@ -173,5 +160,6 @@ source prs_ejy.cfg
 fn_sync_user_create 
 fn_config_set
 #java test runpre
-#fn_install
+fn_install
 #java test runaction
+fn_admin
