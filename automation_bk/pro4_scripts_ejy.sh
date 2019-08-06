@@ -75,6 +75,7 @@ fn_config_set() {
 	rm -f prs_obj.list.template
 	mv prs_install.cfg.template prs_install.cfg
 	mv prs_obj_group1.list.template prs_obj_group1.list
+	echo "${sync_user}.%" >> prs_obj_group1.list
 	echo "cat prs_obj_group1.list"
 	cat prs_obj_group1.list
 	
@@ -87,12 +88,14 @@ fn_config_set() {
 	case "${src_type}" in
 		TIBERO)   	
 		echo "set prs_install.cfg (2) - source tibero"
-    		sed -i "s/TOP_ID=/TOP_ID=t2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
-    		sed -i "s/PRS_USER=prosync/PRS_USER=prosync_t2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		top_id="t2t"
+		echo "top_id = ${top_id}"
+    		sed -i "s/TOP_ID=/TOP_ID=${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+    		sed -i "s/PRS_USER=prosync/PRS_USER=prosync_${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/PRS_PWD=/PRS_PWD=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		
 		sed -i "s/RULE_DB_TYPE=TIBERO/RULE_DB_TYPE=${SRC_DB_TYPE[0]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
-		sed -i "s/RULE_DB_NAME=/RULE_DB_NAME=${SRC_DB_NAME[10}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		sed -i "s/RULE_DB_NAME=/RULE_DB_NAME=${SRC_DB_NAME[0]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/RULE_INSTALL_USER=/RULE_INSTALL_USER=sys/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/RULE_INSTALL_PWD=/RULE_INSTALL_PWD=tibero/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		
@@ -104,8 +107,10 @@ fn_config_set() {
 
 		ORACLE)
 		echo "set prs_install.cfg (2) - source oracle"
-		sed -i "s/TOP_ID=/TOP_ID=o2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
-    		sed -i "s/PRS_USER=prosync/PRS_USER=prosync_o2t/g" $HOME/prosync4_$ims/install/prs_install.cfg
+		top_id="o2t"
+		echo "top_id = ${top_id}"
+		sed -i "s/TOP_ID=/TOP_ID=${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
+    		sed -i "s/PRS_USER=prosync/PRS_USER=prosync_${top_id}/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		sed -i "s/PRS_PWD=/PRS_PWD=oracle/g" $HOME/prosync4_$ims/install/prs_install.cfg
 		
 		sed -i "s/RULE_DB_TYPE=TIBERO/RULE_DB_TYPE=${SRC_DB_TYPE[1]}/g" $HOME/prosync4_$ims/install/prs_install.cfg
@@ -122,9 +127,17 @@ fn_config_set() {
 }
 
 fn_install () {
+    echo "source .bash_profile"
+    source $HOME/.bash_profile
+    
+    echo "prosync4 install start"
     source $HOME/prosync4_$ims/prs_env $HOME/prosync4_$ims
     cd $HOME/prosync4_$ims/install
     sh prs_install.sh
+
+    echo "previous process kill"
+    kill -9 `ps -ef| grep prs_  | grep -v grep  | cut -d ' ' -f 3`
+
 }
 
 fn_admin () {
@@ -133,20 +146,20 @@ fn_admin () {
     case "$1" in
         start)
         prs_adm << EOF
-        start $2
-        exit;
+	start ${top_id}
+	exit;
 EOF
         ;;
         status)
         prs_adm << EOF
-        status $2
-        exit;
+	status ${top_id}
+	exit;
 EOF
         ;;
         stop)
         prs_adm << EOF
-        shutd $2 abort
-        exit;
+	shutd man abort
+	exit;
 EOF
         ;;
     esac
@@ -162,4 +175,7 @@ fn_config_set
 #java test runpre
 fn_install
 #java test runaction
-fn_admin
+fn_admin start
+fn_admin status
+fn_admin stop
+
