@@ -8,14 +8,7 @@ public class test {
 	static String ValidationtUnit;
 
 	public static void main(String[] args) throws ClassNotFoundException, InterruptedException {
-		// DatabaseLoader
-		//// SRC/TAR DB connection();
-		//// SRC DB runSQL(); - getAction
-		//// SRC/TAR DB check(); - verify
 
-		// 단위 순 : test step -> test case -> test suite
-		// check단위는 commit단위보다 작을 수 없다. ex) commit=case,check=step 이면 안된다.(커밋하지 않았는데,
-		// 정합성을 체크함)
 		CommitUnit = "step";
 		ValidationtUnit = "step";
 
@@ -24,23 +17,14 @@ public class test {
 		TestCaseRegsiter tr = new TestCaseRegsiter();
 		ArrayList<TestCasePrecondition> tcPre = new ArrayList<TestCasePrecondition>();
 		ArrayList<TestCaseStep> tcStep = new ArrayList<TestCaseStep>();
+		Validation vd = new Validation();
 
 		Connection conn = null;
-
 		ResultSet rs = null;
 
 		try {
 			long start = System.currentTimeMillis();
-
 			Connection connTarget = null;
-			// 전반적인 과정
-			// 1) mysql(testlink) 에서 tc(testcase)의 id 추출 및 action 추출
-			// 2) 추출된 action을 정제 후(=HTML tag 제거 후) 배열로 저장
-			// 3) tc에 대한 precondition쿼리를 소스/타겟 DB에 날려줌
-			// 4) action에 있는 쿼리를 날려서 소스DB에 부하를 준다.
-
-			// testlink DB(mysql)에 접속 및 DB정보 저장
-
 			// index 0 : testlink, 1 : srcdb, 2 : tardb
 			// srcㅡtar DB 정보 추가 설정 필요
 			dbinfo.setDbInfo(0, "com.mysql.jdbc.Driver", "jdbc:mysql://192.168.1.154:3307/bitnami_testlink", "root",
@@ -69,6 +53,8 @@ public class test {
 			}
 			// runaction이라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[0].equals("runaction")) {
+				int xid = 0, tsn = 0;
+
 				conn = dbinfo.getConnection(0);
 				// loop를 전부 for each 형태로 작성
 				// tcPre에서 id를 추출하여 id에 해당하는 action 수행
@@ -78,124 +64,73 @@ public class test {
 				}
 				closeConnection(conn);
 
-				ArrayList<String> syncTable = new ArrayList<String>();
-				int xid = 0, tsn = 0;
-				boolean colValidation = true, stepValidation = true, caseValidation = true;
-
 				conn = dbinfo.getConnection(1);
-				int index = 0;
-				for (TestCaseStep i : tcStep) {
-					caseValidation = true;
-					for (String action : i.getAction()) {
-						// sync table parsing
-						String syncTableSplit = null;
-						if (action.contains("TBL")) {
-							// System.out.println("SQL : " + action);
-							if (sj.executeActionQry(conn, action) < 0) {
-								System.out.println(
-										", CASE Name : " + tcPre.get(index).getSubject() + ", SQL : " + action);
+				int actionIndex = 0;
+
+				for (int i = 0; i < tcStep.size(); i++) {
+					for (int j = 0; j < tcStep.get(i).getActionSize(); j++) {
+						boolean stepValidation = true;
+						System.out.println(tcStep.get(i).getAction().get(j));
+						if (tcStep.get(i).getAction().get(j).contains("TBL")) {
+							actionIndex++;
+							// 쿼리 수행 시, 에러(음수값)로 인해서 적용되지 않았다면 TX정보 조회하지 않기 위한 구문
+							if (sj.executeActionQry(conn, tcStep.get(i).getAction().get(j)) < 0) {
+								System.out.println(", CASE Name : " + tcPre.get(i).getSubject() + ", SQL : "
+										+ tcStep.get(i).getAction().get(j));
 								continue;
 							}
-							rs = conn.createStatement().executeQuery(
-									"select dbms_transaction.local_transaction_id as tid, decode(dbms_transaction.local_transaction_id,null,null,current_tsn) as tsn from v$database;\n"
-											+ "");
-							while (rs.next()) {
-								String str = rs.getString("tid");
-								tsn = rs.getInt("tsn");
-								if (str != null && !str.isEmpty()) {
-									xid = Integer.parseInt(str.split("\\.")[0]) * 65536
-											+ Integer.parseInt(str.split("\\.")[1]);
-								}
-							}
-							syncTableSplit = action.substring(action.indexOf("TBL"));
-							syncTableSplit = syncTableSplit.split(" ")[0].split("\\(")[0].split("\\,")[0].split(";")[0];
+							String txInfo = sj.getTxInfo(conn);
+							xid = Integer.parseInt(txInfo.split("/")[0]);
+							tsn = Integer.parseInt(txInfo.split("/")[1]);
+							// 동기화 테이블 추가();
+							vd.registerSyncTable(tcStep.get(i).getAction().get(j));
 
-							if (!syncTable.contains(syncTableSplit)) {
-								syncTable.add(syncTableSplit);
-							}
-						} else if (action.contains("ROLLBACK")) {
+						} else if (tcStep.get(i).getAction().get(j).contains("ROLLBACK")) {
 							conn.rollback();
-							syncTable.clear();
+							vd.clearSyncTable();
+
 						} else {
-							// check logic
-							if (syncTable.size() == 0) {
-								break;
+							if (vd.getSyncTableList().size() == 0) {
+								System.out.println("* 확인할 동기화 테이블 없음 *");
+								continue;
 							}
-							stepValidation = true;
 							conn.commit();
 							connTarget = dbinfo.getConnection(2);
-
-							// 프로싱크 동기화 여부 확인 (last tsn 조회)
+							// 프로싱크 동기화 여부 확인 (last TSN 조회될 때가지)
 							do {
 								// System.out.println("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " +
 								// xid + " AND tsn >= " + tsn);
 								rs = connTarget.createStatement()
 										.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
 												+ " AND tsn >= " + tsn);
-								Thread.sleep(200);
+								Thread.sleep(500);
 							} while (!rs.isBeforeFirst());
 
-							// 마지막에 추가된 테이블부터 조회 하도록 뒤집기
-							Collections.reverse(syncTable);
-							for (String tbl : syncTable) {
-								// 해당 테이블의 총 row count 추출
-								int srcRowCount = sj.getRowCount(conn, tbl),
-										tarRowCount = sj.getRowCount(connTarget, tbl);
-
-								if (srcRowCount != tarRowCount) {
-									stepValidation = false;
-								} else if (srcRowCount == 0) {
-									// System.out.println(" ROW 없음");
-									continue;
-								} else {
-									// System.out.println(", ROW수 같음");
-									ResultSet rs1 = conn.createStatement()
-											.executeQuery("select * from " + tbl + " order by 1");
-									ResultSet rs2 = connTarget.createStatement()
-											.executeQuery("select * from " + tbl + " order by 1");
-									// row별 데이터 비교
-									ResultSetMetaData metaInfo1 = rs1.getMetaData();
-									colValidation = true;
-									// 여러 row에 대해서 컬럼값 비교, 하나의 컬럼이라도 정합성이 다를 경우 수행되지 않음
-									while (rs1.next() && rs2.next() && colValidation) {
-										for (int l = 1; l <= metaInfo1.getColumnCount(); l++) {
-											if (rs1.getString(l) == null || rs1.getString(l).equals("") == true) {
-												continue;
-											} else if (rs1.getString(l).equals(rs2.getString(l))) {
-												colValidation &= true;
-											} else {
-												System.out.println(metaInfo1.getColumnName(l) + "컬럼 데이터 불일치 SRC : "
-														+ rs1.getString(l) + ", TAR : " + rs2.getString(l));
-												System.out.println(tcPre.get(index).getSubject() + ", TBL : " + tbl);
-												colValidation &= false;
-												break;
-											}
-										}
-									}
-									stepValidation &= colValidation;
-								}
-								if (!stepValidation) {
-									System.out.println("STEP 단위 정합성 불일치 ");
-									break;
-								}
+							for (String tbl : vd.getSyncTableList()) {
+								stepValidation &= vd.validateSyncTable(conn, connTarget, tbl);
 							}
-							// System.out.println("stepValidation : " + stepValidation + ", colValidation :
-							// " + colValidation);
-							syncTable.clear();
-							closeConnection(connTarget);
+							for (int k = 0; k <= actionIndex; k++) {
+								tcStep.get(i).addStepValidation(stepValidation);
+							}
+							actionIndex = 0;
+							vd.clearSyncTable();
+							System.out.println("해당 stepValidation : " + stepValidation);
 						}
+						closeConnection(connTarget);
+						tcStep.get(i).setCaseValidation(stepValidation);
 					}
-					caseValidation &= stepValidation;
-					if (!caseValidation) {
-						System.out.println("CASE 단위 정합성 불일치 ");
-					}
-					System.out.println(tcPre.get(index++).getSubject() + ", caseValidation : " + caseValidation);
+					System.out.println(
+							tcPre.get(i).getSubject() + ", caseValidation : " + tcStep.get(i).getCaseValidation());
+					System.out.println("stepValidation size : " + tcStep.get(i).getStepValidation().size()
+							+ ", value : " + tcStep.get(i).getStepValidation());
 				}
 				closeConnection(conn);
 			}
 			long end = System.currentTimeMillis();
 			System.out.println("실행 시간 : " + (end - start) / 1000.0 + "(초)");
-		} catch (SQLException e) {
+		} catch (
+
+		SQLException e) {
 			e.printStackTrace();
 		} finally {
 			closeConnection(conn);
@@ -215,10 +150,70 @@ class Validation {
 	// current tsn 조회
 	// lct 테이블에 동기화 되었는지 여부 확인
 	// src/tar 정합성 비교
+	private ArrayList<String> syncTable = new ArrayList<String>();
+	private ResultSet rs = null;
+
+	public void clearSyncTable() {
+		this.syncTable.clear();
+	}
 
 	public void runValidation() {
 		System.out.println("a");
 	}
+
+	public ArrayList<String> getSyncTableList() {
+		return this.syncTable;
+	}
+
+	public void registerSyncTable(String action) {
+		String syncTableSplit = action.substring(action.indexOf("TBL"));
+		syncTableSplit = syncTableSplit.split(" ")[0].split("\\(")[0].split("\\,")[0].split(";")[0];
+		if (!syncTable.contains(syncTableSplit)) {
+			syncTable.add(syncTableSplit);
+		}
+	}
+
+	public int getRowCount(Connection conn, String tbl) throws SQLException {
+		rs = conn.createStatement().executeQuery("select count(*) as count from " + tbl);
+		rs.next();
+		return rs.getInt("count");
+	}
+
+	public boolean validateSyncTable(Connection conn, Connection connTarget, String tbl) throws SQLException {
+		int srcRowCount = this.getRowCount(conn, tbl);
+		int tarRowCount = this.getRowCount(connTarget, tbl);
+		boolean flag = true;
+
+		if (srcRowCount != tarRowCount) {
+			System.out.println(tbl + " 소스/타겟 ROW 불일치!!");
+			return false;
+		} else if (srcRowCount == 0) {
+		} else {
+			ResultSet rs1 = conn.createStatement().executeQuery("select * from " + tbl + " order by 1");
+			ResultSet rs2 = connTarget.createStatement().executeQuery("select * from " + tbl + " order by 1");
+			ResultSetMetaData metaInfo1 = rs1.getMetaData();
+			ResultSetMetaData metaInfo2 = rs2.getMetaData();
+
+			if (metaInfo1.getColumnCount() != metaInfo2.getColumnCount()) {
+				System.out.println("테이블의 컬럼 개수 정보가 일치하지 않음 : " + tbl);
+				return false;
+			}
+			// 여러 row에 대해서 컬럼값 비교, 하나의 컬럼이라도 정합성이 다를 경우 나머지 row는 확인하지 않음
+			while (rs1.next() && rs2.next() && flag) {
+				for (int l = 1; l <= metaInfo1.getColumnCount(); l++) {
+					if (rs1.getString(l) == null || rs1.getString(l).equals("") == true) {
+					} else if (rs1.getString(l).equals(rs2.getString(l))) {
+					} else {
+						System.out.println(metaInfo1.getColumnName(l) + "컬럼 데이터 불일치 SRC : " + rs1.getString(l)
+								+ ", TAR : " + rs2.getString(l));
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+
 }
 
 //testlink에서 precondition과 step을 가져오는 클래스
@@ -278,6 +273,17 @@ class SqlJob {
 			this.rs1 = conn.createStatement().executeQuery(sql1);
 		}
 		return this.rs1;
+	}
+
+	public String getTxInfo(Connection conn) throws SQLException {
+		int xid, tsn;
+		rs = conn.createStatement().executeQuery(
+				"select dbms_transaction.local_transaction_id as tid, decode(dbms_transaction.local_transaction_id,null,null,current_tsn) as tsn from v$database");
+		rs.next();
+		xid = Integer.parseInt(rs.getString("tid").split("\\.")[0]) * 65536
+				+ Integer.parseInt(rs.getString("tid").split("\\.")[1]);
+		tsn = rs.getInt("tsn");
+		return xid + "/" + tsn;
 	}
 
 	public int getRowCount(Connection conn, String tbl) throws SQLException {
@@ -346,6 +352,24 @@ class TestCasePrecondition {
 class TestCaseStep {
 	private ArrayList<String> action = new ArrayList<String>();
 	private ArrayList<String> expected_result = new ArrayList<String>();
+	private ArrayList<Boolean> stepValidation = new ArrayList<Boolean>();
+	private boolean caseValidation = true;
+
+	public void addStepValidation(Boolean flag) {
+		this.stepValidation.add(flag);
+	}
+
+	public void setCaseValidation(Boolean flag) {
+		this.caseValidation &= flag;
+	}
+
+	public ArrayList<Boolean> getStepValidation() {
+		return this.stepValidation;
+	}
+
+	public Boolean getCaseValidation() {
+		return this.caseValidation;
+	}
 
 	public void setStep(String action, String expected_result) {
 		this.action.add(action);
