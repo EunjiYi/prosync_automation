@@ -1,16 +1,16 @@
 import com.tmax.tibero.jdbc.driver.TbConnection;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.List;
 
 public class test {
-	public static String CommitUnit;
-	static String ValidationtUnit;
-
-	public static void main(String[] args) throws ClassNotFoundException, InterruptedException {
-
-		CommitUnit = "step";
-		ValidationtUnit = "step";
+	public static void main(String[] args) throws ClassNotFoundException, InterruptedException, IOException {
 
 		DBConnection dbinfo = new DBConnection();
 		SqlJob sj = new SqlJob();
@@ -21,18 +21,45 @@ public class test {
 
 		Connection conn = null;
 		ResultSet rs = null;
+		if (args.length <= 0 || args.length  > 3) {
+			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName() + " [cfg file] [runpre|runaction] [4]");
+			System.exit(0);
+		}
+		
+		Path path = Paths.get(args[0]);
+		List<String> list = new ArrayList<String>();
+		list = Files.readAllLines(path);
+
+		String src_url = null, src_driver = null, src_id = null, src_passwd = null, tar_url = null, tar_driver = null,
+				tar_id = null, tar_passwd = null;
+
+		for (String readLine : list) {
+			if (readLine.contains("SRC_URL"))
+				src_url = readLine.split("=")[1];
+			else if (readLine.contains("SRC_DRIVER"))
+				src_driver = readLine.split("=")[1];
+			else if (readLine.contains("SRC_ID"))
+				src_id = readLine.split("=")[1];
+			else if (readLine.contains("SRC_PASSWD"))
+				src_passwd = readLine.split("=")[1];
+			else if (readLine.contains("TAR_URL"))
+				tar_url = readLine.split("=")[1];
+			else if (readLine.contains("TAR_DRIVER"))
+				tar_driver = readLine.split("=")[1];
+			else if (readLine.contains("TAR_ID"))
+				tar_id = readLine.split("=")[1];
+			else if (readLine.contains("TAR_PASSWD"))
+				tar_passwd = readLine.split("=")[1];
+		}
 
 		try {
 			long start = System.currentTimeMillis();
 			Connection connTarget = null;
 			// index 0 : testlink, 1 : srcdb, 2 : tardb
-			// srcㅡtar DB 정보 추가 설정 필요
 			dbinfo.setDbInfo(0, "com.mysql.jdbc.Driver", "jdbc:mysql://192.168.1.154:3307/bitnami_testlink", "root",
 					"testlink");
-			dbinfo.setDbInfo(1, "com.tmax.tibero.jdbc.TbDriver", "jdbc:tibero:thin:@192.168.17.104:38629:tbsync1",
-					"tibero", "tmax");
-			dbinfo.setDbInfo(2, "com.tmax.tibero.jdbc.TbDriver", "jdbc:tibero:thin:@192.168.17.104:48629:tbsync2",
-					"tibero", "tmax");
+			dbinfo.setDbInfo(1, src_driver, src_url, src_id, src_passwd);
+			dbinfo.setDbInfo(2, tar_driver, tar_url, tar_id, tar_passwd);
 
 			// conn 변수에 값 대입되는 시점에 DB에 접속함
 			conn = dbinfo.getConnection(0);
@@ -41,7 +68,7 @@ public class test {
 			closeConnection(conn);
 
 			// runpre라고 keyword 입력시 해당 구문 수행
-			if (args.length > 0 && args[0].equals("runpre")) {
+			if (args.length > 0 && args[1].equals("runpre")) {
 				conn = dbinfo.getConnection(1);
 				connTarget = dbinfo.getConnection(2);
 				for (TestCasePrecondition i : tcPre) {
@@ -52,7 +79,7 @@ public class test {
 				closeConnection(connTarget);
 			}
 			// runaction이라고 keyword 입력시 해당 구문 수행
-			if (args.length > 0 && args[0].equals("runaction")) {
+			if (args.length > 0 && args[1].equals("runaction")) {
 				int xid = 0, tsn = 0;
 
 				conn = dbinfo.getConnection(0);
@@ -102,7 +129,7 @@ public class test {
 								// System.out.println("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " +
 								// xid + " AND tsn >= " + tsn);
 
-								if (args[1].equals("4")) {
+								if (args[2].equals("4")) {
 									rs = connTarget.createStatement()
 											.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct WHERE tsn >= " + tsn);
 								} else {
@@ -325,7 +352,7 @@ class SqlJob {
 		try {
 			return conn.createStatement().executeUpdate(sql);
 		} catch (SQLException e) {
-			//System.out.print("Error Code : " + e.getErrorCode());
+			// System.out.print("Error Code : " + e.getErrorCode());
 			return e.getErrorCode();
 		}
 	}
