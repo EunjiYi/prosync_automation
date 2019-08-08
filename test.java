@@ -68,15 +68,15 @@ public class test {
 				int actionIndex = 0;
 
 				for (int i = 0; i < tcStep.size(); i++) {
+					System.out.print(tcPre.get(i).getTcName());
 					for (int j = 0; j < tcStep.get(i).getActionSize(); j++) {
 						boolean stepValidation = true;
-						System.out.println(tcStep.get(i).getAction().get(j));
+						// System.out.println(tcStep.get(i).getAction().get(j));
 						if (tcStep.get(i).getAction().get(j).contains("TBL")) {
 							actionIndex++;
 							// 쿼리 수행 시, 에러(음수값)로 인해서 적용되지 않았다면 TX정보 조회하지 않기 위한 구문
 							if (sj.executeActionQry(conn, tcStep.get(i).getAction().get(j)) < 0) {
-								System.out.println(", CASE Name : " + tcPre.get(i).getSubject() + ", SQL : "
-										+ tcStep.get(i).getAction().get(j));
+								// System.out.print(", SQL : "+ tcStep.get(i).getAction().get(j));
 								continue;
 							}
 							String txInfo = sj.getTxInfo(conn);
@@ -88,41 +88,61 @@ public class test {
 						} else if (tcStep.get(i).getAction().get(j).contains("ROLLBACK")) {
 							conn.rollback();
 							vd.clearSyncTable();
-
 						} else {
 							if (vd.getSyncTableList().size() == 0) {
-								System.out.println("* 확인할 동기화 테이블 없음 *");
+								// System.out.println("* 확인할 동기화 테이블 없음 *");
 								continue;
 							}
 							conn.commit();
 							connTarget = dbinfo.getConnection(2);
+							// Thread.sleep(5000);
 							// 프로싱크 동기화 여부 확인 (last TSN 조회될 때가지)
+							int sleepCnt = 0;
 							do {
 								// System.out.println("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " +
 								// xid + " AND tsn >= " + tsn);
-								rs = connTarget.createStatement()
-										.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
-												+ " AND tsn >= " + tsn);
+
+								if (args[1].equals("4")) {
+									rs = connTarget.createStatement()
+											.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct WHERE tsn >= " + tsn);
+								} else {
+									rs = connTarget.createStatement()
+											.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
+													+ " AND tsn >= " + tsn);
+								}
 								Thread.sleep(500);
+								sleepCnt++;
+								if (sleepCnt == 600) {
+									System.out.println("\nPRS_LCT 테이블 동기화 체크가 되지 않음, 동기화 되지 않는 상태로 판단하여 프로그램 종료");
+									System.exit(0);
+								}
 							} while (!rs.isBeforeFirst());
 
 							for (String tbl : vd.getSyncTableList()) {
 								stepValidation &= vd.validateSyncTable(conn, connTarget, tbl);
 							}
+							// commit 까지 step 단위로 case pass/fail 입력
 							for (int k = 0; k <= actionIndex; k++) {
 								tcStep.get(i).addStepValidation(stepValidation);
 							}
 							actionIndex = 0;
 							vd.clearSyncTable();
-							System.out.println("해당 stepValidation : " + stepValidation);
+							// System.out.println("해당 stepValidation : " + stepValidation);
 						}
 						closeConnection(connTarget);
 						tcStep.get(i).setCaseValidation(stepValidation);
 					}
-					System.out.println(
-							tcPre.get(i).getSubject() + ", caseValidation : " + tcStep.get(i).getCaseValidation());
-					System.out.println("stepValidation size : " + tcStep.get(i).getStepValidation().size()
-							+ ", value : " + tcStep.get(i).getStepValidation());
+					System.out.print(", caseValidation : " + tcStep.get(i).getCaseValidation());
+					if (!tcStep.get(i).getCaseValidation()) {
+						System.out.print(" index :");
+						for (int l = 0; l < tcStep.get(i).getStepValidation().size(); l++) {
+							if (!tcStep.get(i).getStepValidation().get(l)) {
+								System.out.print(" " + l);
+							}
+						}
+
+					}
+					System.out.println("");
 				}
 				closeConnection(conn);
 			}
@@ -229,7 +249,7 @@ class TestCaseRegsiter {
 		while (this.rs.next()) {
 			// 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을 ArrayList에 추가
 			tcPre.add(new TestCasePrecondition(this.rs.getInt("id"), this.rs.getString("name"),
-					this.rs.getString("preconditions")));
+					this.rs.getString("preconditions"), this.rs.getString("value")));
 			tcPre.get(tcPre.size() - 1).modifyPrecondition();
 		}
 		return tcPre;
@@ -252,8 +272,8 @@ class SqlJob {
 
 	public ResultSet selectTCversion(Connection conn) throws SQLException {
 		// sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
-		String sql = "SELECT b.id, a.name, b.preconditions FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b"
-				+ " WHERE parent_id in (417990) and b.id=a.id+1";
+		String sql = "SELECT b.id, a.name, b.preconditions, c.value FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b, bitnami_testlink.cfield_design_values c"
+				+ " WHERE parent_id in (417990) and b.id=a.id+1 and b.id=c.node_id and c.field_id=1;";
 		this.rs = conn.createStatement().executeQuery(sql);
 		return this.rs;
 	}
@@ -305,7 +325,7 @@ class SqlJob {
 		try {
 			return conn.createStatement().executeUpdate(sql);
 		} catch (SQLException e) {
-			System.out.print("Error Code : " + e.getErrorCode());
+			//System.out.print("Error Code : " + e.getErrorCode());
 			return e.getErrorCode();
 		}
 	}
@@ -321,12 +341,17 @@ class SqlJob {
 //precondition 가져와서 정제
 class TestCasePrecondition {
 	private int id;
-	private String subject, precondition;
+	private String subject, precondition, tcName;
 
-	public TestCasePrecondition(int id, String subject, String precondition) {
+	public TestCasePrecondition(int id, String subject, String precondition, String tcName) {
 		this.id = id;
 		this.subject = subject;
 		this.precondition = precondition;
+		this.tcName = tcName;
+	}
+
+	public String getTcName() {
+		return this.tcName;
 	}
 
 	public String getSubject() {
