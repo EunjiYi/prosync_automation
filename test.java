@@ -22,7 +22,7 @@ public class test {
 		Connection conn = null;
 		ResultSet rs = null;
 		if (args.length <= 0 || args.length  > 3) {
-			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName() + " [cfg file] [runpre|runaction] [4]");
+			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName() + " [cfg file] [createTable|runTestcase] [4]");
 			System.exit(0);
 		}
 		
@@ -68,7 +68,7 @@ public class test {
 			closeConnection(conn);
 
 			// runpre라고 keyword 입력시 해당 구문 수행
-			if (args.length > 0 && args[1].equals("runpre")) {
+			if (args.length > 0 && args[1].equals("createTable")) {
 				conn = dbinfo.getConnection(1);
 				connTarget = dbinfo.getConnection(2);
 				for (TestCasePrecondition i : tcPre) {
@@ -79,7 +79,7 @@ public class test {
 				closeConnection(connTarget);
 			}
 			// runaction이라고 keyword 입력시 해당 구문 수행
-			if (args.length > 0 && args[1].equals("runaction")) {
+			if (args.length > 0 && args[1].equals("runTestcase")) {
 				int xid = 0, tsn = 0;
 
 				conn = dbinfo.getConnection(0);
