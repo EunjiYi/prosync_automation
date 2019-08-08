@@ -128,7 +128,6 @@ public class test {
 							do {
 								// System.out.println("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " +
 								// xid + " AND tsn >= " + tsn);
-
 								if (args[2].equals("4")) {
 									rs = connTarget.createStatement()
 											.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct WHERE tsn >= " + tsn);
