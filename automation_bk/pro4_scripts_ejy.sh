@@ -144,22 +144,16 @@ fn_admin () {
 
     case "$1" in
         start)
-        prs_adm << EOF
-	start ${top_id}
-	exit;
-EOF
+        prs_adm -c start ${top_id}
+	
         ;;
         status)
-        prs_adm << EOF
-	status ${top_id}
-	exit;
-EOF
+        prs_adm -c status ${top_id}
+	
         ;;
         stop)
-        prs_adm << EOF
-	shutd man abort
-	exit;
-EOF
+        prs_adm -c shutd man abort
+	
         ;;
     esac
 }
