@@ -139,6 +139,9 @@ fn_install () {
     kill -9 `ps -ef| grep prs_  | grep -v grep  | cut -d ' ' -f 3`
 }
 
+fn_set_apply_cfg() {
+	#sed -i "s/SRC_INSTALL_PWD=/SRC_INSTALL_PWD=oracle/g" $HOME/prosync4_$ims/install/apply.cfg	
+}
 fn_admin () {
     source $HOME/prosync4_$ims/prs_env $HOME/prosync4_$ims
 
@@ -163,10 +166,11 @@ fn_init
 source prs_ejy.cfg
 fn_sync_user_create 
 fn_config_set
-#java test runpre
+#javac -encoding utf-8 test.java
+#java test prs.cfg createTable
 fn_install
-#java test runaction
+fn_set_apply_cfg
+#java test prs.cfg runTestcase
 fn_admin start
 fn_admin status
 fn_admin stop
-
