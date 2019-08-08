@@ -21,11 +21,12 @@ public class test {
 
 		Connection conn = null;
 		ResultSet rs = null;
-		if (args.length <= 0 || args.length  > 3) {
-			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName() + " [cfg file] [createTable|runTestcase] [4]");
+		if (args.length <= 0 || args.length > 3) {
+			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
+					+ " [cfg file] [createTable|runTestcase] [4]");
 			System.exit(0);
 		}
-		
+
 		Path path = Paths.get(args[0]);
 		List<String> list = new ArrayList<String>();
 		list = Files.readAllLines(path);
@@ -130,10 +131,14 @@ public class test {
 								// xid + " AND tsn >= " + tsn);
 								if (args[2].equals("4")) {
 									rs = connTarget.createStatement()
-											.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct WHERE tsn >= " + tsn);
+											.executeQuery("SELECT tsn FROM prosync_t2t.prs_lct WHERE tsn >= " + tsn);
+								} else if (args[2].equals("3")) {
+									rs = connTarget.createStatement().executeQuery(
+											"SELECT last_commit_tsn FROM tbsync_t2t.tbsync_last_commit_tsn WHERE last_commit_tsn >= "
+													+ tsn);
 								} else {
 									rs = connTarget.createStatement()
-											.executeQuery("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
+											.executeQuery("SELECT tsn FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
 													+ " AND tsn >= " + tsn);
 								}
 								Thread.sleep(500);
