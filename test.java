@@ -34,6 +34,7 @@ public class test {
 		list = Files.readAllLines(path);
 
 		/*
+		 * 
 		 * java 또는 shell 을 수행해야 할 때 Process theProcess = null; BufferedReader inStream =
 		 * null;
 		 * 
