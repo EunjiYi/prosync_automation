@@ -1,8 +1,0 @@
-VAR A VARCHAR2(10)
-VAR FOREIGN VARCHAR2(10)
-VAR B VARCHAR2(10)
-exec :A := 'a';
-exec :B := 'b';
-exec :FOREIGN := 'f';
-INSERT INTO IMS145569 ("A", "FOREIGN", "B") VALUES (:A, :FOREIGN, :B);
-commit;

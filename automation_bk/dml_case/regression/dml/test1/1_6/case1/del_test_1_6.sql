@@ -1,2 +1,0 @@
-DELETE FROM dml_test_1_6 WHERE C1=1;
-COMMIT;
