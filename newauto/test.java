@@ -69,19 +69,15 @@ public class test {
 		try {
 			long start = System.currentTimeMillis();
 			Connection connTarget = null;
-			// index 0 : testlink, 1 : srcdb, 2 : tardb
 			dbinfo.setDbInfo(0, "com.mysql.jdbc.Driver", "jdbc:mysql://192.168.2.128:3307/bitnami_testlink", "root",
 					"testlink");
 			dbinfo.setDbInfo(1, src_driver, src_url, src_id, src_passwd);
 			dbinfo.setDbInfo(2, tar_driver, tar_url, tar_id, tar_passwd);
-
-			// conn 변수에 값 대입되는 시점에 DB에 접속함
 			conn = dbinfo.getConnection(0);
 			rs = sj.selectTCversion(conn);
 			tr.addPrecondition(tcPre, rs);
 			closeConnection(conn);
 
-			// runpre라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[1].equals("createTable")) {
 				conn = dbinfo.getConnection(1);
 				connTarget = dbinfo.getConnection(2);
@@ -92,13 +88,10 @@ public class test {
 				closeConnection(conn);
 				closeConnection(connTarget);
 			}
-			// runaction이라고 keyword 입력시 해당 구문 수행
 			if (args.length > 0 && args[1].equals("runTestcase")) {
 				int xid = 0, tsn = 0;
 
 				conn = dbinfo.getConnection(0);
-				// loop를 전부 for each 형태로 작성
-				// tcPre에서 id를 추출하여 id에 해당하는 action 수행
 				for (TestCasePrecondition i : tcPre) {
 					rs = sj.selectTCstep(conn, i.getId());
 					tr.addStep(tcStep, rs);
@@ -115,7 +108,6 @@ public class test {
 						// System.out.println(tcStep.get(i).getAction().get(j));
 						if (tcStep.get(i).getAction().get(j).contains("TBL")) {
 							actionIndex++;
-							// 쿼리 수행 시, 에러(음수값)로 인해서 적용되지 않았다면 TX정보 조회하지 않기 위한 구문
 							if (sj.executeActionQry(conn, tcStep.get(i).getAction().get(j)) < 0) {
 								// System.out.print(", SQL : "+ tcStep.get(i).getAction().get(j));
 								continue;
@@ -136,8 +128,6 @@ public class test {
 							}
 							conn.commit();
 							connTarget = dbinfo.getConnection(2);
-							// Thread.sleep(5000);
-							// 프로싱크 동기화 여부 확인 (last TSN 조회될 때가지)
 							int sleepCnt = 0;
 							do {
 								// System.out.println("SELECT TSN FROM prosync_t2t.prs_lct_t0 WHERE xid = " +
@@ -211,9 +201,6 @@ public class test {
 }
 
 class Validation {
-	// current tsn 조회
-	// lct 테이블에 동기화 되었는지 여부 확인
-	// src/tar 정합성 비교
 	private ArrayList<String> syncTable = new ArrayList<String>();
 	private ResultSet rs = null;
 
@@ -257,12 +244,10 @@ class Validation {
 			ResultSet rs2 = connTarget.createStatement().executeQuery("select * from " + tbl + " order by 1");
 			ResultSetMetaData metaInfo1 = rs1.getMetaData();
 			ResultSetMetaData metaInfo2 = rs2.getMetaData();
-
 			if (metaInfo1.getColumnCount() != metaInfo2.getColumnCount()) {
 				System.out.println("테이블의 컬럼 개수 정보가 일치하지 않음 : " + tbl);
 				return false;
 			}
-			// 여러 row에 대해서 컬럼값 비교, 하나의 컬럼이라도 정합성이 다를 경우 나머지 row는 확인하지 않음
 			while (rs1.next() && rs2.next() && flag) {
 				for (int l = 1; l <= metaInfo1.getColumnCount(); l++) {
 					if (rs1.getString(l) == null || rs1.getString(l).equals("") == true) {
@@ -280,18 +265,13 @@ class Validation {
 
 }
 
-//testlink에서 precondition과 step을 가져오는 클래스
-//step = actions + expected results를 합친 의미
-//actions = testlink에서 step actions
 class TestCaseRegsiter {
 	private ResultSet rs = null;
 
-	// testlink에서 precondition을 가져온다.
 	public ArrayList<TestCasePrecondition> addPrecondition(ArrayList<TestCasePrecondition> tcPre, ResultSet rs)
 			throws SQLException {
 		this.rs = rs;
 		while (this.rs.next()) {
-			// 내용이 있으면 테스트케이스의 id + subject + preconditions 내용을 ArrayList에 추가
 			tcPre.add(new TestCasePrecondition(this.rs.getInt("id"), this.rs.getString("name"),
 					this.rs.getString("preconditions"), this.rs.getString("value")));
 			tcPre.get(tcPre.size() - 1).modifyPrecondition();
@@ -299,7 +279,6 @@ class TestCaseRegsiter {
 		return tcPre;
 	}
 
-	// testlink에서 step을 가져온다.
 	public ArrayList<TestCaseStep> addStep(ArrayList<TestCaseStep> tcStep, ResultSet rs) throws SQLException {
 		tcStep.add(new TestCaseStep());
 		while (rs.next()) {
@@ -310,12 +289,10 @@ class TestCaseRegsiter {
 	}
 }
 
-//자동화를 위해 수행하는 sql문을 모아놓은 class
 class SqlJob {
 	private ResultSet rs, rs1 = null;
 
 	public ResultSet selectTCversion(Connection conn) throws SQLException {
-		// sql : testlink에서 prosync 테스트케이스들이 저장된 '디렉토리'를 조회하는 쿼리
 		String sql = "SELECT b.id, a.name, b.preconditions, c.value FROM bitnami_testlink.nodes_hierarchy a,bitnami_testlink.tcversions b, bitnami_testlink.cfield_design_values c"
 				+ " WHERE parent_id in (417990) and b.id=a.id+1 and b.id=c.node_id and c.field_id=1;";
 		this.rs = conn.createStatement().executeQuery(sql);
@@ -323,9 +300,7 @@ class SqlJob {
 	}
 
 	public ResultSet selectTCstep(Connection conn, int id) throws SQLException {
-		// sql : 해당 디렉토리 속 '테스트케이스들의 id'를 조회하는 쿼리
 		String sql = "SELECT id FROM bitnami_testlink.nodes_hierarchy WHERE parent_id=" + id;
-		// sql1 : 해당 테스트케이스의 '액션들'을 조회하는 쿼리
 		String sql1 = "SELECT actions, expected_results FROM bitnami_testlink.tcsteps WHERE id in (";
 		this.rs = conn.createStatement().executeQuery(sql);
 		if (this.rs != null && this.rs.isBeforeFirst()) {
@@ -356,7 +331,6 @@ class SqlJob {
 		return rs.getInt("count");
 	}
 
-	// db에 접속하여 precondion을 수행한다.
 	public void executePreQry(Connection conn, String sql) throws SQLException {
 		String[] sqlSplit = sql.split(";");
 		for (int n = 0; n < sqlSplit.length; n++) {
@@ -364,20 +338,12 @@ class SqlJob {
 		}
 	}
 
-	// db 에 접속하여 action을 수행한다.
 	public int executeActionQry(Connection conn, String sql) {
 		try {
 			return conn.createStatement().executeUpdate(sql);
 		} catch (SQLException e) {
 			// System.out.print("Error Code : " + e.getErrorCode());
 			return e.getErrorCode();
-		}
-	}
-
-	public void executeCommit(Connection conn, String CommitUnit, String unit) throws SQLException {
-		if (CommitUnit.equals(unit)) {
-			System.out.println("COMMIT;");
-			conn.commit();
 		}
 	}
 }
