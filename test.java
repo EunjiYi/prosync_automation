@@ -143,7 +143,7 @@ public class test {
 								}
 								Thread.sleep(500);
 								sleepCnt++;
-								if (sleepCnt == 600) {
+								if (sleepCnt == 1200) {
 									System.out.println("\nPRS_LCT 테이블 동기화 체크가 되지 않음, 동기화 되지 않는 상태로 판단하여 프로그램 종료");
 									System.exit(0);
 								}
