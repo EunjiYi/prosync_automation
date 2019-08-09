@@ -1,7 +1,9 @@
 import com.tmax.tibero.jdbc.driver.TbConnection;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,6 +33,16 @@ public class test {
 		List<String> list = new ArrayList<String>();
 		list = Files.readAllLines(path);
 
+		/*
+		 * java 또는 shell 을 수행해야 할 때 Process theProcess = null; BufferedReader inStream =
+		 * null;
+		 * 
+		 * theProcess = Runtime.getRuntime().exec("java IMS159927_Tibero"); inStream =
+		 * new BufferedReader(new InputStreamReader(theProcess.getInputStream()));
+		 * System.out.println(inStream.readLine()); theProcess.destroy();
+		 * System.exit(0);
+		 */
+
 		String src_url = null, src_driver = null, src_id = null, src_passwd = null, tar_url = null, tar_driver = null,
 				tar_id = null, tar_passwd = null;
 
@@ -57,7 +69,7 @@ public class test {
 			long start = System.currentTimeMillis();
 			Connection connTarget = null;
 			// index 0 : testlink, 1 : srcdb, 2 : tardb
-			dbinfo.setDbInfo(0, "com.mysql.jdbc.Driver", "jdbc:mysql://192.168.1.154:3307/bitnami_testlink", "root",
+			dbinfo.setDbInfo(0, "com.mysql.jdbc.Driver", "jdbc:mysql://192.168.2.128:3307/bitnami_testlink", "root",
 					"testlink");
 			dbinfo.setDbInfo(1, src_driver, src_url, src_id, src_passwd);
 			dbinfo.setDbInfo(2, tar_driver, tar_url, tar_id, tar_passwd);
