@@ -1,9 +1,4 @@
-import com.tmax.tibero.jdbc.driver.TbConnection;
-
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -78,7 +73,7 @@ public class test {
 			tr.addPrecondition(tcPre, rs);
 			closeConnection(conn);
 
-			if (args.length > 0 && args[1].equals("createTable")) {
+			if (args.length > 1 && args[1].equals("createTable")) {
 				conn = dbinfo.getConnection(1);
 				connTarget = dbinfo.getConnection(2);
 				for (TestCasePrecondition i : tcPre) {
@@ -88,7 +83,7 @@ public class test {
 				closeConnection(conn);
 				closeConnection(connTarget);
 			}
-			if (args.length > 0 && args[1].equals("runTestcase")) {
+			if (args.length > 1 && args[1].equals("runTestcase")) {
 				int xid = 0, tsn = 0;
 
 				conn = dbinfo.getConnection(0);
