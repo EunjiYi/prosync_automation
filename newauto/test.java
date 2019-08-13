@@ -28,17 +28,6 @@ public class test {
 		List<String> list = new ArrayList<String>();
 		list = Files.readAllLines(path);
 
-		/*
-		 * 
-		 * java 또는 shell 을 수행해야 할 때 Process theProcess = null; BufferedReader inStream =
-		 * null;
-		 * 
-		 * theProcess = Runtime.getRuntime().exec("java IMS159927_Tibero"); inStream =
-		 * new BufferedReader(new InputStreamReader(theProcess.getInputStream()));
-		 * System.out.println(inStream.readLine()); theProcess.destroy();
-		 * System.exit(0);
-		 */
-
 		String src_url = null, src_driver = null, src_id = null, src_passwd = null, tar_url = null, tar_driver = null,
 				tar_id = null, tar_passwd = null;
 
