@@ -195,6 +195,40 @@ public class test {
 	}
 }
 
+//db에 접속과 관련된 클래스
+class DBConnection {
+	private String[] driver = new String[3];
+	private String[] url = new String[3];
+	private String[] user = new String[3];
+	private String[] pwd = new String[3];
+
+	// DB에 접속하기 위한 정보(driver, url, user, passwd)를 받아 정보를 세팅
+	public void setDbInfo(int index, String driver, String url, String user, String pwd) {
+		this.driver[index] = driver;
+		this.url[index] = url;
+		this.user[index] = user;
+		this.pwd[index] = pwd;
+	}
+
+	// DB연결상태 출력
+	public Connection getConnection(int index) {
+		Connection conn = null;
+		try {
+			Class.forName(this.driver[index]);
+			conn = DriverManager.getConnection(this.url[index], this.user[index], this.pwd[index]);
+			conn.setAutoCommit(false); // 자동 커밋 해제
+		} catch (ClassNotFoundException cnfe) {
+			System.out.println("DB 드라이버 로딩 실패 :" + cnfe.toString());
+		} catch (SQLException sqle) {
+			System.out.println("DB 접속실패 : " + sqle.toString());
+		} catch (Exception e) {
+			System.out.println("Unkonwn error");
+			e.printStackTrace();
+		}
+		return conn;
+	}
+}
+
 class Validation {
 	private ArrayList<String> syncTable = new ArrayList<String>();
 	private ResultSet rs = null;
@@ -258,30 +292,6 @@ class Validation {
 		return true;
 	}
 
-}
-
-class TestCaseRegsiter {
-	private ResultSet rs = null;
-
-	public ArrayList<TestCasePrecondition> addPrecondition(ArrayList<TestCasePrecondition> tcPre, ResultSet rs)
-			throws SQLException {
-		this.rs = rs;
-		while (this.rs.next()) {
-			tcPre.add(new TestCasePrecondition(this.rs.getInt("id"), this.rs.getString("name"),
-					this.rs.getString("preconditions"), this.rs.getString("value")));
-			tcPre.get(tcPre.size() - 1).modifyPrecondition();
-		}
-		return tcPre;
-	}
-
-	public ArrayList<TestCaseStep> addStep(ArrayList<TestCaseStep> tcStep, ResultSet rs) throws SQLException {
-		tcStep.add(new TestCaseStep());
-		while (rs.next()) {
-			tcStep.get(tcStep.size() - 1).setStep(rs.getString("actions"), rs.getString("expected_results"));
-			tcStep.get(tcStep.size() - 1).modifyAction(tcStep.get(tcStep.size() - 1).getActionSize() - 1);
-		}
-		return tcStep;
-	}
 }
 
 class SqlJob {
@@ -423,36 +433,26 @@ class TestCaseStep {
 	}
 }
 
-//db에 접속과 관련된 클래스
-class DBConnection {
-	private String[] driver = new String[3];
-	private String[] url = new String[3];
-	private String[] user = new String[3];
-	private String[] pwd = new String[3];
+class TestCaseRegsiter {
+	private ResultSet rs = null;
 
-	// DB에 접속하기 위한 정보(driver, url, user, passwd)를 받아 정보를 세팅
-	public void setDbInfo(int index, String driver, String url, String user, String pwd) {
-		this.driver[index] = driver;
-		this.url[index] = url;
-		this.user[index] = user;
-		this.pwd[index] = pwd;
+	public ArrayList<TestCasePrecondition> addPrecondition(ArrayList<TestCasePrecondition> tcPre, ResultSet rs)
+			throws SQLException {
+		this.rs = rs;
+		while (this.rs.next()) {
+			tcPre.add(new TestCasePrecondition(this.rs.getInt("id"), this.rs.getString("name"),
+					this.rs.getString("preconditions"), this.rs.getString("value")));
+			tcPre.get(tcPre.size() - 1).modifyPrecondition();
+		}
+		return tcPre;
 	}
 
-	// DB연결상태 출력
-	public Connection getConnection(int index) {
-		Connection conn = null;
-		try {
-			Class.forName(this.driver[index]);
-			conn = DriverManager.getConnection(this.url[index], this.user[index], this.pwd[index]);
-			conn.setAutoCommit(false); // 자동 커밋 해제
-		} catch (ClassNotFoundException cnfe) {
-			System.out.println("DB 드라이버 로딩 실패 :" + cnfe.toString());
-		} catch (SQLException sqle) {
-			System.out.println("DB 접속실패 : " + sqle.toString());
-		} catch (Exception e) {
-			System.out.println("Unkonwn error");
-			e.printStackTrace();
+	public ArrayList<TestCaseStep> addStep(ArrayList<TestCaseStep> tcStep, ResultSet rs) throws SQLException {
+		tcStep.add(new TestCaseStep());
+		while (rs.next()) {
+			tcStep.get(tcStep.size() - 1).setStep(rs.getString("actions"), rs.getString("expected_results"));
+			tcStep.get(tcStep.size() - 1).modifyAction(tcStep.get(tcStep.size() - 1).getActionSize() - 1);
 		}
-		return conn;
+		return tcStep;
 	}
 }
