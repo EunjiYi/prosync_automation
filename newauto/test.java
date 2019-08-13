@@ -233,24 +233,20 @@ class Validation {
 	private ArrayList<String> syncTable = new ArrayList<String>();
 	private ResultSet rs = null;
 
-	public void clearSyncTable() {
-		this.syncTable.clear();
-	}
-
-	public void runValidation() {
-		System.out.println("a");
-	}
-
-	public ArrayList<String> getSyncTableList() {
-		return this.syncTable;
-	}
-
 	public void registerSyncTable(String action) {
 		String syncTableSplit = action.substring(action.indexOf("TBL"));
 		syncTableSplit = syncTableSplit.split(" ")[0].split("\\(")[0].split("\\,")[0].split(";")[0];
 		if (!syncTable.contains(syncTableSplit)) {
 			syncTable.add(syncTableSplit);
 		}
+	}
+
+	public ArrayList<String> getSyncTableList() {
+		return this.syncTable;
+	}
+
+	public void clearSyncTable() {
+		this.syncTable.clear();
 	}
 
 	public int getRowCount(Connection conn, String tbl) throws SQLException {
@@ -330,12 +326,6 @@ class SqlJob {
 		return xid + "/" + tsn;
 	}
 
-	public int getRowCount(Connection conn, String tbl) throws SQLException {
-		rs = conn.createStatement().executeQuery("select count(*) as count from " + tbl);
-		rs.next();
-		return rs.getInt("count");
-	}
-
 	public void executePreQry(Connection conn, String sql) throws SQLException {
 		String[] sqlSplit = sql.split(";");
 		for (int n = 0; n < sqlSplit.length; n++) {
@@ -369,10 +359,6 @@ class TestCasePrecondition {
 		return this.tcName;
 	}
 
-	public String getSubject() {
-		return this.subject;
-	}
-
 	public int getId() {
 		return this.id;
 	}
@@ -395,22 +381,6 @@ class TestCaseStep {
 	private ArrayList<Boolean> stepValidation = new ArrayList<Boolean>();
 	private boolean caseValidation = true;
 
-	public void addStepValidation(Boolean flag) {
-		this.stepValidation.add(flag);
-	}
-
-	public void setCaseValidation(Boolean flag) {
-		this.caseValidation &= flag;
-	}
-
-	public ArrayList<Boolean> getStepValidation() {
-		return this.stepValidation;
-	}
-
-	public Boolean getCaseValidation() {
-		return this.caseValidation;
-	}
-
 	public void setStep(String action, String expected_result) {
 		this.action.add(action);
 		this.expected_result.add(expected_result);
@@ -431,6 +401,23 @@ class TestCaseStep {
 						.replaceAll("(\r|\n|\r\n|\n\r)", "").replaceAll("&lt;", "<").replaceAll("&gt;", ">")
 						.replaceAll("&#39;", "'").replaceAll("&nbsp;", " "));
 	}
+
+	public void setCaseValidation(Boolean flag) {
+		this.caseValidation &= flag;
+	}
+
+	public void addStepValidation(Boolean flag) {
+		this.stepValidation.add(flag);
+	}
+
+	public ArrayList<Boolean> getStepValidation() {
+		return this.stepValidation;
+	}
+
+	public Boolean getCaseValidation() {
+		return this.caseValidation;
+	}
+
 }
 
 class TestCaseRegsiter {
