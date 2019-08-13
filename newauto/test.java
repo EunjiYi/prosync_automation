@@ -82,8 +82,7 @@ public class test {
 				}
 				closeConnection(conn);
 				closeConnection(connTarget);
-			}
-			if (args.length > 1 && args[1].equals("runTestcase")) {
+			} else if (args.length > 1 && args[1].equals("runTestcase")) {
 				int xid = 0, tsn = 0;
 
 				conn = dbinfo.getConnection(0);
@@ -174,9 +173,14 @@ public class test {
 					System.out.println("");
 				}
 				closeConnection(conn);
+			} else {
+				System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
+						+ " [cfg file] [createTable|runTestcase] [4]");
+				System.exit(0);
 			}
 			long end = System.currentTimeMillis();
 			System.out.println("실행 시간 : " + (end - start) / 1000.0 + "(초)");
+
 		} catch (
 
 		SQLException e) {
