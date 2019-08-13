@@ -20,7 +20,7 @@ public class test {
 		ResultSet rs = null;
 		if (args.length <= 0 || args.length > 3) {
 			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
-					+ " [cfg file] [createTable|runTestcase] [4]");
+					+ " [cfg file] [createTable|runTestcase] [3|4]");
 			System.exit(0);
 		}
 
@@ -175,7 +175,7 @@ public class test {
 				closeConnection(conn);
 			} else {
 				System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
-						+ " [cfg file] [createTable|runTestcase] [4]");
+						+ " [cfg file] [createTable|runTestcase] [3|4]");
 				System.exit(0);
 			}
 			long end = System.currentTimeMillis();
