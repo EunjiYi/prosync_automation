@@ -88,9 +88,10 @@ public class test {
 					System.out.print(tcPre.get(i).getTcName());
 					for (int j = 0; j < tcStep.get(i).getActionSize(); j++) {
 						boolean stepValidation = true;
-						// System.out.println(tcStep.get(i).getAction().get(j));
+						actionIndex++;
+						System.out.println(tcStep.get(i).getAction().get(j));
 						if (tcStep.get(i).getAction().get(j).contains("TBL")) {
-							actionIndex++;
+							
 							if (sj.executeActionQry(conn, tcStep.get(i).getAction().get(j)) < 0) {
 								// System.out.print(", SQL : "+ tcStep.get(i).getAction().get(j));
 								continue;
@@ -127,7 +128,7 @@ public class test {
 											.executeQuery("SELECT tsn FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
 													+ " AND tsn >= " + tsn);
 								}
-								Thread.sleep(5000);
+								Thread.sleep(3000);
 								sleepCnt++;
 								if (sleepCnt == 1200) {
 									System.out.println("\nPRS_LCT 테이블 동기화 체크가 되지 않음, 동기화 되지 않는 상태로 판단하여 프로그램 종료");
@@ -139,7 +140,7 @@ public class test {
 								stepValidation &= vd.validateSyncTable(conn, connTarget, tbl);
 							}
 							// commit 까지 step 단위로 case pass/fail 입력
-							for (int k = 0; k <= actionIndex; k++) {
+							for (int k = 0; k < actionIndex; k++) {
 								tcStep.get(i).addStepValidation(stepValidation);
 							}
 							actionIndex = 0;
@@ -254,7 +255,7 @@ class Validation {
 		boolean flag = true;
 
 		if (srcRowCount != tarRowCount) {
-			System.out.println(tbl + " 소스/타겟 ROW 불일치!!");
+			System.out.print(" " + tbl + " 소스/타겟 ROW 불일치!!");
 			return false;
 		} else if (srcRowCount == 0) {
 		} else {
