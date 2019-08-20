@@ -127,7 +127,7 @@ public class test {
 											.executeQuery("SELECT tsn FROM prosync_t2t.prs_lct_t0 WHERE xid = " + xid
 													+ " AND tsn >= " + tsn);
 								}
-								Thread.sleep(500);
+								Thread.sleep(5000);
 								sleepCnt++;
 								if (sleepCnt == 1200) {
 									System.out.println("\nPRS_LCT 테이블 동기화 체크가 되지 않음, 동기화 되지 않는 상태로 판단하여 프로그램 종료");
@@ -260,18 +260,18 @@ class Validation {
 		} else {
 			ResultSet rs1 = conn.createStatement().executeQuery("select * from " + tbl + " order by 1");
 			ResultSet rs2 = connTarget.createStatement().executeQuery("select * from " + tbl + " order by 1");
-			ResultSetMetaData metaInfo1 = rs1.getMetaData();
-			ResultSetMetaData metaInfo2 = rs2.getMetaData();
-			if (metaInfo1.getColumnCount() != metaInfo2.getColumnCount()) {
+			ResultSetMetaData metaInfoSrc = rs1.getMetaData();
+			ResultSetMetaData metaInfoTar = rs2.getMetaData();
+			if (metaInfoSrc.getColumnCount() != metaInfoTar.getColumnCount()) {
 				System.out.println("테이블의 컬럼 개수 정보가 일치하지 않음 : " + tbl);
 				return false;
 			}
 			while (rs1.next() && rs2.next() && flag) {
-				for (int l = 1; l <= metaInfo1.getColumnCount(); l++) {
+				for (int l = 1; l <= metaInfoSrc.getColumnCount(); l++) {
 					if (rs1.getString(l) == null || rs1.getString(l).equals("") == true) {
 					} else if (rs1.getString(l).equals(rs2.getString(l))) {
 					} else {
-						System.out.println(metaInfo1.getColumnName(l) + "컬럼 데이터 불일치 SRC : " + rs1.getString(l)
+						System.out.println(metaInfoSrc.getColumnName(l) + "컬럼 데이터 불일치 SRC : " + rs1.getString(l)
 								+ ", TAR : " + rs2.getString(l));
 						return false;
 					}
