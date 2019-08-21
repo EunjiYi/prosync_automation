@@ -6,8 +6,15 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+
 public class test {
-	public static void main(String[] args) throws ClassNotFoundException, InterruptedException, IOException {
+	public static void main(String[] args) throws ClassNotFoundException, InterruptedException, IOException, JSchException {
 
 		DBConnection dbinfo = new DBConnection();
 		SqlJob sj = new SqlJob();
@@ -18,6 +25,19 @@ public class test {
 
 		Connection conn = null;
 		ResultSet rs = null;
+		
+		/*
+		 * // ssh 접속 후 명령어 수행 예제 JSch jsch = new JSch(); Session session = null; Channel
+		 * channel = null; session = jsch.getSession("tbsync1", "192.168.17.104");
+		 * session.setConfig("StrictHostKeyChecking", "no");
+		 * session.setPassword("tibero"); session.connect(); channel =
+		 * session.openChannel("exec"); ChannelExec channelExec = (ChannelExec) channel;
+		 * channelExec.
+		 * setCommand("source .bash_profile; cd /data/home/tbsync1/prosync4; source prs_env `pwd`; prs_adm -c \"start t2t\""
+		 * ); channelExec.connect(); channelExec.disconnect();
+		 */
+		
+		
 		if (args.length <= 0 || args.length > 3) {
 			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
 					+ " [cfg file] [createTable|runTestcase] [3|4]");
@@ -89,7 +109,7 @@ public class test {
 					for (int j = 0; j < tcStep.get(i).getActionSize(); j++) {
 						boolean stepValidation = true;
 						actionIndex++;
-						System.out.println(tcStep.get(i).getAction().get(j));
+						//System.out.println(tcStep.get(i).getAction().get(j));
 						if (tcStep.get(i).getAction().get(j).contains("TBL")) {
 							
 							if (sj.executeActionQry(conn, tcStep.get(i).getAction().get(j)) < 0) {
