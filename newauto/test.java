@@ -27,14 +27,14 @@ public class test {
 		ResultSet rs = null;
 		
 		
-		  // ssh 접속 후 명령어 수행 예제 
+		// ssh 접속 후 명령어 수행 예제 
 		JSch jsch = new JSch(); 
 		Session session = null; 
 		Channel channel = null;
 		String binaryName =args[4].split("/")[2];
 		System.out.println(binaryName);
 		String installCmd =null;
-		  if (args.length > 1 && args[1].equals("installCfg")) {			
+		if (args.length > 1 && args[1].equals("installCfg")) {			
 			    installCmd = "source .*profile;"
 			    		+ "tar -xzf " + binaryName +";" 
 			    		+ "mv prosync4 prosync4_" + args[3] + ";"	// args[3] = IMS NUMBER	    
@@ -44,40 +44,33 @@ public class test {
 			    		+ "cp templates/prs_install.cfg.template prs_install.cfg;" 
 			    		+ "cp templates/prs_obj_group1.list.template prs_obj_group1.list;" ;
 		  }
-			    	
-		  //installCmd = "touch a; /usr/bin/tar -xzf prosync4-bin-linux64-3768-opt.tar.gz; touch b; cp b c";
+			  	
 		  System.out.println(installCmd);
 		  session = jsch.getSession("tdata", "192.168.17.105");
 		  session.setConfig("StrictHostKeyChecking", "no");
 		  session.setPassword("tmaxdata"); 
-		  session.connect(); channel =		  session.openChannel("exec"); 
+		  session.connect(); channel = session.openChannel("exec"); 
 		  ChannelExec channelExec = (ChannelExec) channel;
 		  channelExec.setCommand(installCmd); 
 		  channelExec.connect(); 
 		  channelExec.disconnect();
-	
+		  
+		  
+		 if (args.length > 1 && args[1].equals("prsInstall")) {
+			String prsCmd = "sh $HOME/prosync4_"+args[3]+"/install/prs_install.sh";
+			// args[3] = IMS NUMBER
+			channelExec.setCommand(prsCmd); 
+			
+		}else if (args.length > 1 && args[1].equals("prsAdm")) {
+			String admCmd = "prs_adm -c \"start "+ args[2] + "\"";
+			// args[2] = T2T or O2T
+			channelExec.setCommand(admCmd); 
+		}
+		
+	channelExec.connect();
+	channelExec.disconnect();
 
-		  System.exit(0);
-		
-		  
-		  
-		  
-		/*
-		 * JSch jsch = new JSch(); Session session = null; Channel channel = null;
-		 * session = jsch.getSession("tdata", "192.168.17.105");
-		 * session.setConfig("StrictHostKeyChecking", "no");
-		 * //session.setConfig("PreferredAuthentications", "sam@@220#");
-		 * session.setPassword("tmaxdata"); session.connect();
-		 * 
-		 * channel = session.openChannel("exec"); ChannelExec channelExec =
-		 * (ChannelExec) channel;
-		 * 
-		 * String cmd = "source .bash_profile ; " + "echo $TB_HOME > a5.log ;";
-		 * 
-		 * channelExec.setCommand(cmd); System.exit(0);
-		 * 
-		 */
-		
+	System.exit(0);
 		
 		if (args.length <= 0 || args.length > 3) {
 			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
