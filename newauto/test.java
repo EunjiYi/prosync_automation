@@ -26,15 +26,56 @@ public class test {
 		Connection conn = null;
 		ResultSet rs = null;
 		
+		
+		  // ssh 접속 후 명령어 수행 예제 
+		JSch jsch = new JSch(); 
+		Session session = null; 
+		Channel channel = null;
+		String binaryName =args[4].split("/")[2];
+		System.out.println(binaryName);
+		String installCmd =null;
+		  if (args.length > 1 && args[1].equals("installCfg")) {			
+			    installCmd = "source .*profile;"
+			    		+ "tar -xzf " + binaryName +";" 
+			    		+ "mv prosync4 prosync4_" + args[3] + ";"	// args[3] = IMS NUMBER	    
+			    		+ "cd prosync4_" + args[3]+ ";"
+			    		+ "source prs_env `pwd`;"
+			    		+ "cd $PRS_HOME/install;"  
+			    		+ "cp templates/prs_install.cfg.template prs_install.cfg;" 
+			    		+ "cp templates/prs_obj_group1.list.template prs_obj_group1.list;" ;
+		  }
+			    	
+		  //installCmd = "touch a; /usr/bin/tar -xzf prosync4-bin-linux64-3768-opt.tar.gz; touch b; cp b c";
+		  System.out.println(installCmd);
+		  session = jsch.getSession("tdata", "192.168.17.105");
+		  session.setConfig("StrictHostKeyChecking", "no");
+		  session.setPassword("tmaxdata"); 
+		  session.connect(); channel =		  session.openChannel("exec"); 
+		  ChannelExec channelExec = (ChannelExec) channel;
+		  channelExec.setCommand(installCmd); 
+		  channelExec.connect(); 
+		  channelExec.disconnect();
+	
+
+		  System.exit(0);
+		
+		  
+		  
+		  
 		/*
-		 * // ssh 접속 후 명령어 수행 예제 JSch jsch = new JSch(); Session session = null; Channel
-		 * channel = null; session = jsch.getSession("tbsync1", "192.168.17.104");
+		 * JSch jsch = new JSch(); Session session = null; Channel channel = null;
+		 * session = jsch.getSession("tdata", "192.168.17.105");
 		 * session.setConfig("StrictHostKeyChecking", "no");
-		 * session.setPassword("tibero"); session.connect(); channel =
-		 * session.openChannel("exec"); ChannelExec channelExec = (ChannelExec) channel;
-		 * channelExec.
-		 * setCommand("source .bash_profile; cd /data/home/tbsync1/prosync4; source prs_env `pwd`; prs_adm -c \"start t2t\""
-		 * ); channelExec.connect(); channelExec.disconnect();
+		 * //session.setConfig("PreferredAuthentications", "sam@@220#");
+		 * session.setPassword("tmaxdata"); session.connect();
+		 * 
+		 * channel = session.openChannel("exec"); ChannelExec channelExec =
+		 * (ChannelExec) channel;
+		 * 
+		 * String cmd = "source .bash_profile ; " + "echo $TB_HOME > a5.log ;";
+		 * 
+		 * channelExec.setCommand(cmd); System.exit(0);
+		 * 
 		 */
 		
 		
