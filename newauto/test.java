@@ -1,4 +1,6 @@
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -8,13 +10,13 @@ import java.util.List;
 
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 public class test {
-	public static void main(String[] args) throws ClassNotFoundException, InterruptedException, IOException, JSchException {
+	public static void main(String[] args)
+			throws ClassNotFoundException, InterruptedException, IOException, JSchException {
 
 		DBConnection dbinfo = new DBConnection();
 		SqlJob sj = new SqlJob();
@@ -25,53 +27,62 @@ public class test {
 
 		Connection conn = null;
 		ResultSet rs = null;
-		
-		
-		// ssh 접속 후 명령어 수행 예제 
-		JSch jsch = new JSch(); 
-		Session session = null; 
-		Channel channel = null;
-		String binaryName =args[4].split("/")[2];
-		System.out.println(binaryName);
-		String installCmd =null;
-		if (args.length > 1 && args[1].equals("installCfg")) {			
-			    installCmd = "source .*profile;"
-			    		+ "tar -xzf " + binaryName +";" 
-			    		+ "mv prosync4 prosync4_" + args[3] + ";"	// args[3] = IMS NUMBER	    
-			    		+ "cd prosync4_" + args[3]+ ";"
-			    		+ "source prs_env `pwd`;"
-			    		+ "cd $PRS_HOME/install;"  
-			    		+ "cp templates/prs_install.cfg.template prs_install.cfg;" 
-			    		+ "cp templates/prs_obj_group1.list.template prs_obj_group1.list;" ;
-		  }
-			  	
-		  System.out.println(installCmd);
-		  session = jsch.getSession("tdata", "192.168.17.105");
-		  session.setConfig("StrictHostKeyChecking", "no");
-		  session.setPassword("tmaxdata"); 
-		  session.connect(); channel = session.openChannel("exec"); 
-		  ChannelExec channelExec = (ChannelExec) channel;
-		  channelExec.setCommand(installCmd); 
-		  channelExec.connect(); 
-		  channelExec.disconnect();
-		  
-		  
-		 if (args.length > 1 && args[1].equals("prsInstall")) {
-			String prsCmd = "sh $HOME/prosync4_"+args[3]+"/install/prs_install.sh";
-			// args[3] = IMS NUMBER
-			channelExec.setCommand(prsCmd); 
-			
-		}else if (args.length > 1 && args[1].equals("prsAdm")) {
-			String admCmd = "prs_adm -c \"start "+ args[2] + "\"";
-			// args[2] = T2T or O2T
-			channelExec.setCommand(admCmd); 
-		}
-		
-	channelExec.connect();
-	channelExec.disconnect();
 
-	System.exit(0);
-		
+		// ssh 접속 후 명령어 수행 예제
+		JSch jsch = new JSch();
+		Session session = null;
+		Channel channel = null;
+		// String binaryName = args[4].split("/")[2];
+		// System.out.println(binaryName);
+		String installCmd = "cd prosync4; source prs_env `pwd`; cd install; cat prs_install.cfg;";
+
+		session = jsch.getSession("tbsync1", "192.168.17.104");
+		session.setPassword("tibero");
+		session.setConfig("StrictHostKeyChecking", "no");
+		session.connect();
+		System.out.println("Connected");
+
+		channel = session.openChannel("exec");
+		((ChannelExec) channel).setCommand(installCmd);
+		channel.setInputStream(null);
+		((ChannelExec) channel).setErrStream(System.err);
+		BufferedReader buffer = new BufferedReader(new InputStreamReader(channel.getInputStream(), "UTF-8"));
+
+		channel.connect();
+		String temp, oldVal = null;
+		while ((temp = buffer.readLine()) != null) {
+			if (temp.contains("SRC_DB_NAME")) {
+				System.out.println("temp : " + temp);
+				oldVal = temp;
+			}
+		}
+		channel.disconnect();
+
+		installCmd = "cd prosync4/install; find . -name \"prs_install.cfg\" | xargs perl -pi -e 's/" + oldVal
+				+ "/SRC_DB_NAME=tbsync2/mg'; cat prs_install.cfg ";
+
+		System.out.println(installCmd);
+		((ChannelExec) channel).setCommand(installCmd);
+		channel.connect();
+		channel.disconnect();
+		session.disconnect();
+
+		System.out.println("DONE");
+		System.exit(0);
+
+		if (args.length > 1 && args[1].equals("prsInstall")) {
+			String prsCmd = "sh $HOME/prosync4_" + args[3] + "/install/prs_install.sh";
+			// args[3] = IMS NUMBER
+			// channelExec.setCommand(prsCmd);
+
+		} else if (args.length > 1 && args[1].equals("prsAdm")) {
+			String admCmd = "prs_adm -c \"start " + args[2] + "\"";
+			// args[2] = T2T or O2T
+			// channelExec.setCommand(admCmd);
+		}
+
+
+
 		if (args.length <= 0 || args.length > 3) {
 			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
 					+ " [cfg file] [createTable|runTestcase] [3|4]");
@@ -143,9 +154,9 @@ public class test {
 					for (int j = 0; j < tcStep.get(i).getActionSize(); j++) {
 						boolean stepValidation = true;
 						actionIndex++;
-						//System.out.println(tcStep.get(i).getAction().get(j));
+						// System.out.println(tcStep.get(i).getAction().get(j));
 						if (tcStep.get(i).getAction().get(j).contains("TBL")) {
-							
+
 							if (sj.executeActionQry(conn, tcStep.get(i).getAction().get(j)) < 0) {
 								// System.out.print(", SQL : "+ tcStep.get(i).getAction().get(j));
 								continue;
