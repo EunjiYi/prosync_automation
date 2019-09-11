@@ -36,11 +36,9 @@ public class test {
 		File file = new File(args[0]);		
 		BufferedReader br = new BufferedReader(new FileReader(file));
 
-		String temp, Val = "";
-		
-		//rule db 셋팅을 위한 임시 변수
-		String temp2 = "";
-		
+		String temp, Val = "";		
+		//temp2 : rule db 셋팅을 위한 임시 변수
+		String temp2 = "";		
 		while ((temp = br.readLine()) != null) {
 			if ( temp.contains("TOP_ID")) {
 				Val += temp + "\n";				
