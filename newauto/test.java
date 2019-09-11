@@ -32,9 +32,8 @@ public class test {
 
 		Connection conn = null;
 		ResultSet rs = null;
-
-		File file = new File("C:\\Users\\EUNJIYI\\Downloads\\prs.cfg");
-		System.out.println(args[0]);
+	
+		File file = new File(args[0]);		
 		BufferedReader br = new BufferedReader(new FileReader(file));
 
 		String temp, Val = "";
