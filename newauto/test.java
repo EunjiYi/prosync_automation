@@ -1,10 +1,15 @@
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,16 +33,79 @@ public class test {
 		Connection conn = null;
 		ResultSet rs = null;
 
+		File file = new File("C:\\Users\\EUNJIYI\\Downloads\\prs.cfg");
+		System.out.println(args[0]);
+		BufferedReader br = new BufferedReader(new FileReader(file));
+
+		String temp, Val = "";
+		
+		//rule db 셋팅을 위한 임시 변수
+		String temp2 = "";
+		
+		while ((temp = br.readLine()) != null) {
+			if ( temp.contains("TOP_ID")) {
+				Val += temp + "\n";				
+				Val += temp.replace("TOP_ID=", "PRS_USER=prosync_") + "\n";
+				Val += "PRS_PWD=tibero\n";
+			}	
+			else if ( temp.contains("SRC_DB_TYPE=tibero") ||temp.contains("SRC_DB_TYPE=TIBERO") ) {
+				Val += temp + "\n";				
+				Val += "SRC_INSTALL_USER=sys\n";
+				Val += "SRC_INSTALL_PWD=tibero\n";
+			}
+			else if ( temp.contains("SRC_DB_TYPE=oracle") || temp.contains("SRC_DB_TYPE=ORACLE")) {
+				Val += temp + "\n";		
+				Val += "SRC_INSTALL_USER=sys\n";
+				Val += "SRC_INSTALL_PWD=oracle\n";
+			}
+			else if ( temp.contains("SRC_DB_NAME") ) {
+				Val += temp + "\n";		
+			}			
+			else if ( temp.contains("TAR_DB_TYPE[0]=tibero") || temp.contains("TAR_DB_TYPE[0]=TIBERO")) {
+				temp2 += temp + "\n";
+				Val += temp + "\n";			
+				Val += "TAR_INSTALL_USER[0]=sys\n";
+				Val += "TAR_INSTALL_PWD[0]=tibero\n";	
+				Val += "RULE_INSTALL_PWD=tibero\n";
+			}
+			else if ( temp.contains("TAR_DB_TYPE[0]=oracle") || temp.contains("TAR_DB_TYPE[0]=ORACLE")) {
+				temp2 += temp + "\n";
+				Val += temp + "\n";			
+				Val += "TAR_INSTALL_USER[0]=sys\n";
+				Val += "TAR_INSTALL_PWD[0]=oracle\n";
+				Val += "RULE_INSTALL_PWD=oracle\n";
+			}
+			else if ( temp.contains("TAR_DB_NAME[0]") ) {
+				temp2 += temp + "\n";
+				Val += temp + "\n";		
+			}	
+		
+		}
+				
+		//RULE_DB SETTING		
+		Val += "RULE_INSTALL_USER=sys\n";
+		temp2 = temp2.replace("TAR_DB_TYPE[0]", "RULE_DB_TYPE") + "\n";
+		temp2 = temp2.replace("TAR_DB_NAME[0]", "RULE_DB_NAME") + "\n";
+		Val += temp2 + "\n";	
+		
+		
 		// ssh 접속 후 명령어 수행 예제
 		JSch jsch = new JSch();
 		Session session = null;
 		Channel channel = null;
 		// String binaryName = args[4].split("/")[2];
 		// System.out.println(binaryName);
-		String installCmd = "cd prosync4; source prs_env `pwd`; cd install; cat prs_install.cfg;";
 
-		session = jsch.getSession("tbsync1", "192.168.17.104");
-		session.setPassword("tibero");
+		String installCmd = "source .*profile;" + "tar -xzf " + args[4] + ";" // args[4] = binaryName
+				+ "mv prosync4 prosync4_" + args[3] + ";" // args[3] = IMS NUMBER
+				+ "cd prosync4_" + args[3] + ";" + "source prs_env `pwd`;" + "cd $PRS_HOME/install;"
+				// + "cp templates/prs_install.cfg.template prs_install.cfg;"
+				+ "cp templates/prs_obj_group1.list.template prs_obj_group1.list;" 
+				+ "echo \"" + Val + "\" >> prs_install.cfg;";
+
+		System.out.println(installCmd);
+		session = jsch.getSession("tmax", "192.168.17.105");
+		session.setPassword("tmaxdata");
 		session.setConfig("StrictHostKeyChecking", "no");
 		session.connect();
 		System.out.println("Connected");
@@ -46,27 +114,12 @@ public class test {
 		((ChannelExec) channel).setCommand(installCmd);
 		channel.setInputStream(null);
 		((ChannelExec) channel).setErrStream(System.err);
-		BufferedReader buffer = new BufferedReader(new InputStreamReader(channel.getInputStream(), "UTF-8"));
+		// BufferedReader buffer = new BufferedReader(new InputStreamReader(channel.getInputStream(), "UTF-8"));
 
 		channel.connect();
-		String temp, oldVal = null;
-		while ((temp = buffer.readLine()) != null) {
-			if (temp.contains("SRC_DB_NAME")) {
-				System.out.println("temp : " + temp);
-				oldVal = temp;
-			}
-		}
 		channel.disconnect();
 
-		installCmd = "cd prosync4/install; find . -name \"prs_install.cfg\" | xargs perl -pi -e 's/" + oldVal
-				+ "/SRC_DB_NAME=tbsync2/mg'; cat prs_install.cfg ";
-
-		System.out.println(installCmd);
-		((ChannelExec) channel).setCommand(installCmd);
-		channel.connect();
-		channel.disconnect();
 		session.disconnect();
-
 		System.out.println("DONE");
 		System.exit(0);
 
@@ -80,8 +133,6 @@ public class test {
 			// args[2] = T2T or O2T
 			// channelExec.setCommand(admCmd);
 		}
-
-
 
 		if (args.length <= 0 || args.length > 3) {
 			System.out.println("java " + Thread.currentThread().getStackTrace()[1].getClassName()
