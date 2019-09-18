@@ -70,7 +70,7 @@ public class test {
 				Val += temp + "\n";
 				Val += temp.replace("TAR_DB_NAME[0]", "RULE_DB_NAME") + "\n";
 			}
-		}Val += "RULE_INSTALL_USER=sys\n";
+		} Val += "RULE_INSTALL_USER=sys\n";
 
 		// ssh 접속 후 명령어 수행 예제
 		JSch jsch = new JSch();
