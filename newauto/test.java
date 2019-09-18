@@ -32,60 +32,47 @@ public class test {
 
 		Connection conn = null;
 		ResultSet rs = null;
-	
-		File file = new File(args[0]);		
+
+		File file = new File(args[0]);
 		BufferedReader br = new BufferedReader(new FileReader(file));
 
-		String temp, Val = "";		
-		//temp2 : rule db 셋팅을 위한 임시 변수
-		String temp2 = "";		
+		String temp, Val = "";
+		// temp2 : rule db 셋팅을 위한 임시 변수
+		String temp2 = "";
 		while ((temp = br.readLine()) != null) {
-			if ( temp.contains("TOP_ID")) {
-				Val += temp + "\n";				
+			if (temp.contains("TOP_ID")) {
+				Val += temp + "\n";
 				Val += temp.replace("TOP_ID=", "PRS_USER=prosync_") + "\n";
 				Val += "PRS_PWD=tibero\n";
-			}	
-			else if ( temp.contains("SRC_DB_TYPE=tibero") ||temp.contains("SRC_DB_TYPE=TIBERO") ) {
-				Val += temp + "\n";				
+			} else if (temp.contains("SRC_DB_TYPE=tibero") || temp.contains("SRC_DB_TYPE=TIBERO")) {
+				Val += temp + "\n";
 				Val += "SRC_INSTALL_USER=sys\n";
 				Val += "SRC_INSTALL_PWD=tibero\n";
-			}
-			else if ( temp.contains("SRC_DB_TYPE=oracle") || temp.contains("SRC_DB_TYPE=ORACLE")) {
-				Val += temp + "\n";		
+			} else if (temp.contains("SRC_DB_TYPE=oracle") || temp.contains("SRC_DB_TYPE=ORACLE")) {
+				Val += temp + "\n";
 				Val += "SRC_INSTALL_USER=sys\n";
 				Val += "SRC_INSTALL_PWD=oracle\n";
-			}
-			else if ( temp.contains("SRC_DB_NAME") ) {
-				Val += temp + "\n";		
-			}			
-			else if ( temp.contains("TAR_DB_TYPE[0]=tibero") || temp.contains("TAR_DB_TYPE[0]=TIBERO")) {
-				temp2 += temp + "\n";
-				Val += temp + "\n";			
+			} else if (temp.contains("SRC_DB_NAME")) {
+				Val += temp + "\n";
+			} else if (temp.contains("TAR_DB_TYPE[0]=tibero") || temp.contains("TAR_DB_TYPE[0]=TIBERO")) {
+				Val += temp + "\n";
+				Val += temp.replace("TAR_DB_TYPE[0]", "RULE_DB_TYPE") + "\n";
 				Val += "TAR_INSTALL_USER[0]=sys\n";
-				Val += "TAR_INSTALL_PWD[0]=tibero\n";	
+				Val += "TAR_INSTALL_PWD[0]=tibero\n";
 				Val += "RULE_INSTALL_PWD=tibero\n";
-			}
-			else if ( temp.contains("TAR_DB_TYPE[0]=oracle") || temp.contains("TAR_DB_TYPE[0]=ORACLE")) {
-				temp2 += temp + "\n";
-				Val += temp + "\n";			
+			} else if (temp.contains("TAR_DB_TYPE[0]=oracle") || temp.contains("TAR_DB_TYPE[0]=ORACLE")) {
+				Val += temp + "\n";
+				Val += temp.replace("TAR_DB_TYPE[0]", "RULE_DB_TYPE") + "\n";
 				Val += "TAR_INSTALL_USER[0]=sys\n";
 				Val += "TAR_INSTALL_PWD[0]=oracle\n";
 				Val += "RULE_INSTALL_PWD=oracle\n";
+			} else if (temp.contains("TAR_DB_NAME[0]")) {
+				Val += temp + "\n";
+				Val += temp.replace("TAR_DB_NAME[0]", "RULE_DB_NAME") + "\n";
 			}
-			else if ( temp.contains("TAR_DB_NAME[0]") ) {
-				temp2 += temp + "\n";
-				Val += temp + "\n";		
-			}	
-		
+
 		}
-				
-		//RULE_DB SETTING		
-		Val += "RULE_INSTALL_USER=sys\n";
-		temp2 = temp2.replace("TAR_DB_TYPE[0]", "RULE_DB_TYPE") + "\n";
-		temp2 = temp2.replace("TAR_DB_NAME[0]", "RULE_DB_NAME") + "\n";
-		Val += temp2 + "\n";	
-		
-		
+
 		// ssh 접속 후 명령어 수행 예제
 		JSch jsch = new JSch();
 		Session session = null;
@@ -97,8 +84,8 @@ public class test {
 				+ "mv prosync4 prosync4_" + args[3] + ";" // args[3] = IMS NUMBER
 				+ "cd prosync4_" + args[3] + ";" + "source prs_env `pwd`;" + "cd $PRS_HOME/install;"
 				// + "cp templates/prs_install.cfg.template prs_install.cfg;"
-				+ "cp templates/prs_obj_group1.list.template prs_obj_group1.list;" 
-				+ "echo \"" + Val + "\" >> prs_install.cfg;";
+				+ "cp templates/prs_obj_group1.list.template prs_obj_group1.list;" + "echo \"" + Val
+				+ "\" >> prs_install.cfg;";
 
 		System.out.println(installCmd);
 		session = jsch.getSession("tmax", "192.168.17.105");
@@ -111,7 +98,8 @@ public class test {
 		((ChannelExec) channel).setCommand(installCmd);
 		channel.setInputStream(null);
 		((ChannelExec) channel).setErrStream(System.err);
-		// BufferedReader buffer = new BufferedReader(new InputStreamReader(channel.getInputStream(), "UTF-8"));
+		// BufferedReader buffer = new BufferedReader(new
+		// InputStreamReader(channel.getInputStream(), "UTF-8"));
 
 		channel.connect();
 		channel.disconnect();
