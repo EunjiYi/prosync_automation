@@ -2,9 +2,9 @@
 <classpath>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="src" path="newauto"/>
-	<classpathentry kind="lib" path="C:/Users/Tmax/git/prosync_automation/newauto/mysql-connector-java-5.1.44-bin.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Tmax/git/prosync_automation/newauto/ojdbc-1.4.2.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Tmax/git/prosync_automation/newauto/tibero6-jdbc.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Tmax/Downloads/jsch-0.1.55.jar"/>
+	<classpathentry kind="lib" path="C:/Users/EUNJIYI/git/prosync_automation/newauto/jsch-0.1.55.jar"/>
+	<classpathentry kind="lib" path="C:/Users/EUNJIYI/git/prosync_automation/newauto/mysql-connector-java-5.1.44-bin.jar"/>
+	<classpathentry kind="lib" path="C:/Users/EUNJIYI/git/prosync_automation/newauto/ojdbc-1.4.2.jar"/>
+	<classpathentry kind="lib" path="C:/Users/EUNJIYI/git/prosync_automation/newauto/tibero6-jdbc.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
