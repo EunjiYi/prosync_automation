@@ -1,6 +1,6 @@
 # prosync_automation
 
-데이터동기화 툴(Tool)의 자동테스트 시스템 구축
+데이터동기화툴의 자동 테스트 시스템 구축 (자동화 Automation)
 
 Developing for Auto Testing System of Database Synchronizing Tools
 
