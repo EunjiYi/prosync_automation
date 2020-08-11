@@ -7,5 +7,3 @@
 Developing for Auto Testing System of Database Synchronizing Tools
 
 Only use 'develop' and 'scripts' branch, not master
-
-Language: Java
